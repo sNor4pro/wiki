@@ -7,6 +7,7 @@ const fs = require('fs-extra')
 const _ = require('lodash')
 const assetHelper = require('../helpers/asset')
 const Promise = require('bluebird')
+const CLIPBOARD_ROOT_FOLDER = 'clipboard_pictures'
 
 /**
  * Users model
@@ -229,6 +230,215 @@ module.exports = class Asset extends Model {
       await fs.outputFile(cachePath, assetData.data)
     } else {
       res.sendStatus(404)
+    }
+  }
+
+  static normalizeClipboardAssetPath(assetPath) {
+    let normalizedPath = _.toString(assetPath).trim()
+    if (!normalizedPath) {
+      return ''
+    }
+
+    normalizedPath = normalizedPath.replace(/\\/g, '/')
+    const rootPrefix = `${CLIPBOARD_ROOT_FOLDER}/`
+    const rootIdx = normalizedPath.toLowerCase().indexOf(rootPrefix)
+    if (rootIdx < 0) {
+      return ''
+    }
+
+    normalizedPath = normalizedPath.substring(rootIdx)
+    normalizedPath = normalizedPath.split('#')[0].split('?')[0]
+    normalizedPath = normalizedPath.replace(/\/{2,}/g, '/')
+    normalizedPath = normalizedPath.replace(/[),.;:!?]+$/, '')
+
+    if (!_.startsWith(normalizedPath, rootPrefix)) {
+      return ''
+    }
+
+    return normalizedPath
+  }
+
+  static extractClipboardAssetPaths(content) {
+    const matches = _.toString(content).match(/clipboard_pictures\/[^\s<>"'`)\]]+/gi) || []
+    const refs = new Set()
+    for (const match of matches) {
+      const normalizedPath = WIKI.models.assets.normalizeClipboardAssetPath(match)
+      if (normalizedPath) {
+        refs.add(normalizedPath)
+      }
+    }
+    return refs
+  }
+
+  static async getClipboardAssetIndex() {
+    const folderPaths = await WIKI.models.assetFolders.getAllPaths()
+    const clipboardFolderIds = _.keys(folderPaths)
+      .map(folderId => _.toInteger(folderId))
+      .filter(folderId => {
+        const folderPath = _.get(folderPaths, `${folderId}`, '')
+        return folderId > 0 && (
+          folderPath === CLIPBOARD_ROOT_FOLDER ||
+          _.startsWith(folderPath, `${CLIPBOARD_ROOT_FOLDER}/`)
+        )
+      })
+
+    if (clipboardFolderIds.length < 1) {
+      return new Map()
+    }
+
+    const assets = await WIKI.models.assets.query()
+      .select('id', 'filename', 'folderId')
+      .whereIn('folderId', clipboardFolderIds)
+
+    const assetIndex = new Map()
+    for (const asset of assets) {
+      const folderPath = _.get(folderPaths, `${asset.folderId}`, '')
+      if (!folderPath) {
+        continue
+      }
+      const assetPath = WIKI.models.assets.normalizeClipboardAssetPath(`${folderPath}/${asset.filename}`)
+      if (!assetPath) {
+        continue
+      }
+      assetIndex.set(assetPath, asset)
+    }
+
+    return assetIndex
+  }
+
+  static async getReferencedClipboardAssetPathsFromPages() {
+    const pages = await WIKI.models.pages.query()
+      .select('content')
+      .where('content', 'like', `%${CLIPBOARD_ROOT_FOLDER}/%`)
+    const refs = new Set()
+    for (const page of pages) {
+      for (const ref of WIKI.models.assets.extractClipboardAssetPaths(page.content)) {
+        refs.add(ref)
+      }
+    }
+    return refs
+  }
+
+  static async deleteAssetById(assetId, opts = {}) {
+    const asset = await WIKI.models.assets.query().findById(assetId)
+    if (!asset) {
+      return false
+    }
+
+    const actor = opts.user || await WIKI.models.users.getRootUser()
+    const assetPath = await asset.getAssetPath()
+
+    await WIKI.models.knex('assetData').where('id', asset.id).del()
+    await WIKI.models.assets.query().deleteById(asset.id)
+    await asset.deleteAssetCache()
+
+    if (!opts.skipStorage) {
+      await WIKI.models.storage.assetEvent({
+        event: 'deleted',
+        asset: {
+          ...asset,
+          path: assetPath,
+          authorId: _.get(actor, 'id', 1),
+          authorName: _.get(actor, 'name', 'System'),
+          authorEmail: _.get(actor, 'email', 'system@localhost')
+        }
+      })
+    }
+
+    return true
+  }
+
+  static async cleanupClipboardAssetsForPageChange(opts = {}) {
+    const previousRefs = WIKI.models.assets.extractClipboardAssetPaths(opts.previousContent)
+    if (previousRefs.size < 1) {
+      return {
+        deletedCount: 0,
+        candidateCount: 0
+      }
+    }
+
+    const nextRefs = WIKI.models.assets.extractClipboardAssetPaths(opts.nextContent)
+    const removedPaths = _.difference(Array.from(previousRefs), Array.from(nextRefs))
+    if (removedPaths.length < 1) {
+      return {
+        deletedCount: 0,
+        candidateCount: 0
+      }
+    }
+
+    const [assetIndex, referencedPaths] = await Promise.all([
+      WIKI.models.assets.getClipboardAssetIndex(),
+      WIKI.models.assets.getReferencedClipboardAssetPathsFromPages()
+    ])
+    if (assetIndex.size < 1) {
+      return {
+        deletedCount: 0,
+        candidateCount: removedPaths.length
+      }
+    }
+
+    const actor = opts.user || await WIKI.models.users.getRootUser()
+    let deletedCount = 0
+
+    for (const removedPath of removedPaths) {
+      if (referencedPaths.has(removedPath)) {
+        continue
+      }
+
+      const asset = assetIndex.get(removedPath)
+      if (!asset) {
+        continue
+      }
+
+      try {
+        await WIKI.models.assets.deleteAssetById(asset.id, {
+          user: actor
+        })
+        deletedCount++
+      } catch (err) {
+        WIKI.logger.warn(`Failed to delete unreferenced clipboard asset ${removedPath}: ${err.message}`)
+      }
+    }
+
+    return {
+      deletedCount,
+      candidateCount: removedPaths.length
+    }
+  }
+
+  static async cleanupClipboardAssetsGlobal(opts = {}) {
+    const [assetIndex, referencedPaths] = await Promise.all([
+      WIKI.models.assets.getClipboardAssetIndex(),
+      WIKI.models.assets.getReferencedClipboardAssetPathsFromPages()
+    ])
+
+    if (assetIndex.size < 1) {
+      return {
+        checkedCount: 0,
+        deletedCount: 0
+      }
+    }
+
+    const actor = opts.user || await WIKI.models.users.getRootUser()
+    let deletedCount = 0
+
+    for (const [assetPath, asset] of assetIndex.entries()) {
+      if (referencedPaths.has(assetPath)) {
+        continue
+      }
+      try {
+        await WIKI.models.assets.deleteAssetById(asset.id, {
+          user: actor
+        })
+        deletedCount++
+      } catch (err) {
+        WIKI.logger.warn(`Failed to delete unreferenced clipboard asset ${assetPath}: ${err.message}`)
+      }
+    }
+
+    return {
+      checkedCount: assetIndex.size,
+      deletedCount
     }
   }
 

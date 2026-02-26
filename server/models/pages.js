@@ -485,6 +485,17 @@ module.exports = class Page extends Model {
     // -> Get latest updatedAt
     page.updatedAt = await WIKI.models.pages.query().findById(page.id).select('updatedAt').then(r => r.updatedAt)
 
+    // -> Cleanup unreferenced clipboard assets removed by this save
+    try {
+      await WIKI.models.assets.cleanupClipboardAssetsForPageChange({
+        previousContent: ogPage.content,
+        nextContent: opts.content,
+        user: opts.user
+      })
+    } catch (err) {
+      WIKI.logger.warn(`Clipboard asset cleanup after save failed for page ${page.id}: ${err.message}`)
+    }
+
     return page
   }
 
@@ -834,6 +845,17 @@ module.exports = class Page extends Model {
       path: page.path,
       mode: 'delete'
     })
+
+    // -> Cleanup unreferenced clipboard assets after page deletion
+    try {
+      await WIKI.models.assets.cleanupClipboardAssetsForPageChange({
+        previousContent: page.content,
+        nextContent: '',
+        user: opts.user
+      })
+    } catch (err) {
+      WIKI.logger.warn(`Clipboard asset cleanup after page delete failed for page ${page.id}: ${err.message}`)
+    }
   }
 
   /**

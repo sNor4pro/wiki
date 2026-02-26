@@ -456,26 +456,59 @@ export default {
     onCmInput: _.debounce(function (newContent) {
       this.processContent(newContent)
     }, 600),
-    async onCmPaste (cm, ev) {
-      const clipboardData = ev.clipboardData || _.get(ev, 'originalEvent.clipboardData', null)
-      let file = null
-      if (clipboardData) {
-        const imageItem = _.find(Array.from(clipboardData.items || []), item => {
-          return item.kind === 'file' && _.startsWith(item.type, 'image/')
-        })
-        if (imageItem && imageItem.getAsFile) {
-          file = imageItem.getAsFile()
-        }
+    clipboardMayContainImage (clipboardData) {
+      if (!clipboardData) {
+        return false
+      }
 
-        if (!file) {
-          const imageFile = _.find(Array.from(clipboardData.files || []), f => _.startsWith(f.type, 'image/'))
-          if (imageFile) {
-            file = imageFile
-          }
+      const items = Array.from(clipboardData.items || [])
+      if (_.some(items, item => item.kind === 'file' && _.startsWith(item.type, 'image/'))) {
+        return true
+      }
+
+      const files = Array.from(clipboardData.files || [])
+      if (_.some(files, f => _.startsWith(f.type, 'image/'))) {
+        return true
+      }
+
+      const types = Array.from(clipboardData.types || [])
+      return _.some(types, t => t === 'Files' || _.startsWith(_.toString(t).toLowerCase(), 'image/'))
+    },
+    getClipboardImageFile (clipboardData) {
+      if (!clipboardData) {
+        return null
+      }
+
+      const imageItem = _.find(Array.from(clipboardData.items || []), item => {
+        return item.kind === 'file' && _.startsWith(item.type, 'image/')
+      })
+      if (imageItem && imageItem.getAsFile) {
+        const itemFile = imageItem.getAsFile()
+        if (itemFile) {
+          return itemFile
         }
       }
 
-      if (!file && navigator.clipboard && navigator.clipboard.read) {
+      const imageFile = _.find(Array.from(clipboardData.files || []), f => _.startsWith(f.type, 'image/'))
+      if (imageFile) {
+        return imageFile
+      }
+
+      return null
+    },
+    async onCmPaste (cm, ev) {
+      const clipboardData = ev.clipboardData || _.get(ev, 'originalEvent.clipboardData', null)
+      const mayContainImage = this.clipboardMayContainImage(clipboardData)
+
+      if (mayContainImage) {
+        // Must happen synchronously, otherwise CM can apply default paste and immediately revert.
+        ev.preventDefault()
+        ev.stopPropagation()
+      }
+
+      let file = this.getClipboardImageFile(clipboardData)
+
+      if (!file && (mayContainImage || !clipboardData) && navigator.clipboard && navigator.clipboard.read) {
         try {
           const clipItems = await navigator.clipboard.read()
           for (const clipItem of clipItems) {
@@ -489,18 +522,14 @@ export default {
       }
 
       if (!file) {
+        if (mayContainImage) {
+          this.$store.commit('showNotification', {
+            message: 'Clipboard image could not be read.',
+            style: 'warning',
+            icon: 'warning'
+          })
+        }
         return
-      }
-
-      ev.preventDefault()
-      ev.stopPropagation()
-
-      if (!file) {
-        return this.$store.commit('showNotification', {
-          message: 'Clipboard image could not be read.',
-          style: 'warning',
-          icon: 'warning'
-        })
       }
 
       let uploadTarget

@@ -123,6 +123,11 @@ jobs:
     schedule: PT15M
     offlineSkip: false
     repeat: true
+  cleanupClipboardAssets:
+    onInit: true
+    schedule: P1D
+    offlineSkip: false
+    repeat: true
   syncGraphLocales:
     onInit: true
     schedule: P1D
