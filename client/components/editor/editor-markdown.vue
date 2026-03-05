@@ -98,6 +98,30 @@
             v-btn.animated.fadeIn.wait-p11s(icon, tile, v-on='on', @click='insertAfter({ content: `---`, newLine: true })').mx-0
               v-icon mdi-minus
           span {{$t('editor:markup.horizontalBar')}}
+        v-menu(offset-y, open-on-hover)
+          template(v-slot:activator='{ on }')
+            v-btn.animated.fadeIn.wait-p12s(icon, tile, v-on='on').mx-0
+              v-icon mdi-file-document-plus-outline
+          v-list.py-0
+            v-list-item(@click='insertAfter({ content: `| Column 1 | Column 2 | Column 3 |\n|----------|----------|----------|\n| Cell 1   | Cell 2   | Cell 3   |\n| Cell 4   | Cell 5   | Cell 6   |`, newLine: true })')
+              v-list-item-action
+                v-icon mdi-table
+              v-list-item-title Table
+            v-divider
+            v-list-item(@click='insertAfter({ content: `- [Link 1](https://example.com)\n- [Link 2](https://example.com)\n- [Link 3](https://example.com)`, newLine: true })')
+              v-list-item-action
+                v-icon mdi-link-variant
+              v-list-item-title Links List
+            v-divider
+            v-list-item(@click='insertAfter({ content: `- [ ] Task 1\n- [ ] Task 2\n- [ ] Task 3`, newLine: true })')
+              v-list-item-action
+                v-icon mdi-checkbox-marked-outline
+              v-list-item-title Task List
+            v-divider
+            v-list-item(@click='insertAfter({ content: `## Section 1\n\nContent for section 1.\n\n## Section 2\n\nContent for section 2.`, newLine: true })')
+              v-list-item-action
+                v-icon mdi-text-box-outline
+              v-list-item-title Sections
         template(v-if='$vuetify.breakpoint.mdAndUp')
           v-spacer
           v-tooltip(bottom, color='primary', v-if='previewShown')
