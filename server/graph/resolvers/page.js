@@ -1,5 +1,6 @@
 const _ = require('lodash')
 const graphHelper = require('../../helpers/graph')
+const reviewHelper = require('../../helpers/review')
 
 /* global WIKI */
 
@@ -15,8 +16,11 @@ module.exports = {
      * PAGE HISTORY
      */
     async history(obj, args, context, info) {
-      const page = await WIKI.models.pages.query().select('path', 'localeCode').findById(args.id)
-      if (WIKI.auth.checkAccess(context.req.user, ['read:history'], {
+      const page = await WIKI.models.pages.query().select('path', 'localeCode', 'isReviewDraft', 'reviewOwnerId').findById(args.id)
+      if (!page) {
+        throw new WIKI.Error.PageNotFound()
+      }
+      if (reviewHelper.canReadReviewPage(context.req.user, page) || WIKI.auth.checkAccess(context.req.user, ['read:history'], {
         path: page.path,
         locale: page.localeCode
       })) {
@@ -33,8 +37,11 @@ module.exports = {
      * PAGE VERSION
      */
     async version(obj, args, context, info) {
-      const page = await WIKI.models.pages.query().select('path', 'localeCode').findById(args.pageId)
-      if (WIKI.auth.checkAccess(context.req.user, ['read:history'], {
+      const page = await WIKI.models.pages.query().select('path', 'localeCode', 'isReviewDraft', 'reviewOwnerId').findById(args.pageId)
+      if (!page) {
+        throw new WIKI.Error.PageNotFound()
+      }
+      if (reviewHelper.canReadReviewPage(context.req.user, page) || WIKI.auth.checkAccess(context.req.user, ['read:history'], {
         path: page.path,
         locale: page.localeCode
       })) {
@@ -92,6 +99,7 @@ module.exports = {
           builder.select('tag')
         })
         .modify(queryBuilder => {
+          queryBuilder.where('pages.isReviewDraft', false)
           if (args.limit) {
             queryBuilder.limit(args.limit)
           }
@@ -152,7 +160,7 @@ module.exports = {
     async single (obj, args, context, info) {
       let page = await WIKI.models.pages.getPageFromDb(args.id)
       if (page) {
-        if (WIKI.auth.checkAccess(context.req.user, ['manage:pages', 'delete:pages'], {
+        if (reviewHelper.canEditReviewPage(context.req.user, page) || WIKI.auth.checkAccess(context.req.user, ['manage:pages', 'delete:pages'], {
           path: page.path,
           locale: page.localeCode
         })) {
@@ -176,7 +184,7 @@ module.exports = {
         locale: args.locale,
       });
       if (page) {
-        if (WIKI.auth.checkAccess(context.req.user, ['manage:pages', 'delete:pages'], {
+        if (reviewHelper.canEditReviewPage(context.req.user, page) || WIKI.auth.checkAccess(context.req.user, ['manage:pages', 'delete:pages'], {
           path: page.path,
           locale: page.localeCode
         })) {
@@ -203,6 +211,7 @@ module.exports = {
           'path',
           { locale: 'localeCode' }
         ])
+        .where('pages.isReviewDraft', false)
         .withGraphJoined('tags')
       const allTags = _.filter(pages, r => {
         return WIKI.auth.checkAccess(context.req.user, ['read:pages'], {
@@ -222,6 +231,7 @@ module.exports = {
           'path',
           { locale: 'localeCode' }
         ])
+        .where('pages.isReviewDraft', false)
         .withGraphJoined('tags')
         .modifyGraph('tags', builder => {
           builder.select('tag')
@@ -283,6 +293,9 @@ module.exports = {
         }
       }).orderBy([{ column: 'isFolder', order: 'desc' }, 'title'])
       return results.filter(r => {
+        if (reviewHelper.isReviewLocation({ path: r.path, locale: r.localeCode })) {
+          return false
+        }
         return WIKI.auth.checkAccess(context.req.user, ['read:pages'], {
           path: r.path,
           locale: r.localeCode
@@ -324,6 +337,12 @@ module.exports = {
       }
 
       return _.reduce(results, (result, val) => {
+        if (
+          reviewHelper.isReviewLocation({ path: val.path, locale: args.locale }) ||
+          reviewHelper.isReviewLocation({ path: val.link, locale: val.locale })
+        ) {
+          return result
+        }
         // -> Check if user has access to source and linked page
         if (
           !WIKI.auth.checkAccess(context.req.user, ['read:pages'], { path: val.path, locale: args.locale }) ||
@@ -349,12 +368,86 @@ module.exports = {
       }, [])
     },
     /**
+     * REVIEW QUEUE
+     */
+    async reviewQueue (obj, args, context) {
+      if (!reviewHelper.isAuthenticatedUser(context.req.user)) {
+        throw new WIKI.Error.PageViewForbidden()
+      }
+
+      const canReview = reviewHelper.isReviewer(context.req.user)
+      const ownerOnly = args.ownerOnly === true || !canReview
+      const status = _.trim(args.status || '').toLowerCase()
+      const limit = _.clamp(_.toSafeInteger(args.limit || 25), 1, 100)
+      const offset = Math.max(0, _.toSafeInteger(args.offset || 0))
+
+      const baseQuery = WIKI.models.pages.query()
+        .column([
+          'pages.id',
+          'pages.path',
+          { locale: 'pages.localeCode' },
+          'pages.title',
+          'pages.description',
+          'pages.createdAt',
+          'pages.updatedAt',
+          'pages.isReviewDraft',
+          'pages.reviewStatus',
+          'pages.reviewOwnerId',
+          'pages.reviewSubmittedAt',
+          'pages.reviewDecisionAt',
+          'pages.reviewDecisionById',
+          'pages.reviewDecisionNote',
+          { reviewOwnerName: 'creator.name' },
+          { reviewDecisionByName: 'decisionUser.name' }
+        ])
+        .leftJoin('users as creator', 'creator.id', 'pages.reviewOwnerId')
+        .leftJoin('users as decisionUser', 'decisionUser.id', 'pages.reviewDecisionById')
+        .withGraphJoined('tags')
+        .modifyGraph('tags', builder => {
+          builder.select('tag')
+        })
+        .where('pages.isReviewDraft', true)
+        .orderBy([{ column: 'pages.updatedAt', order: 'desc' }])
+
+      if (ownerOnly) {
+        baseQuery.andWhere('pages.reviewOwnerId', context.req.user.id)
+      }
+      if (!_.isEmpty(status) && status !== 'all') {
+        baseQuery.andWhere('pages.reviewStatus', status)
+      }
+
+      const totalQuery = WIKI.models.pages.query()
+        .where('pages.isReviewDraft', true)
+        .modify(qb => {
+          if (ownerOnly) {
+            qb.andWhere('pages.reviewOwnerId', context.req.user.id)
+          }
+          if (!_.isEmpty(status) && status !== 'all') {
+            qb.andWhere('pages.reviewStatus', status)
+          }
+        })
+        .count({ total: 'pages.id' })
+        .first()
+      const resultQuery = baseQuery.limit(limit).offset(offset)
+
+      const [totalRow, results] = await Promise.all([totalQuery, resultQuery])
+
+      return {
+        canReview,
+        results: results.map(r => ({
+          ...r,
+          tags: _.map(r.tags, 'tag')
+        })),
+        total: _.toSafeInteger(_.get(totalRow, 'total', 0))
+      }
+    },
+    /**
      * CHECK FOR EDITING CONFLICT
      */
     async checkConflicts (obj, args, context, info) {
-      let page = await WIKI.models.pages.query().select('path', 'localeCode', 'updatedAt').findById(args.id)
+      let page = await WIKI.models.pages.query().select('path', 'localeCode', 'updatedAt', 'isReviewDraft', 'reviewOwnerId').findById(args.id)
       if (page) {
-        if (WIKI.auth.checkAccess(context.req.user, ['write:pages', 'manage:pages'], {
+        if (reviewHelper.canEditReviewPage(context.req.user, page) || WIKI.auth.checkAccess(context.req.user, ['write:pages', 'manage:pages'], {
           path: page.path,
           locale: page.localeCode
         })) {
@@ -372,7 +465,7 @@ module.exports = {
     async conflictLatest (obj, args, context, info) {
       let page = await WIKI.models.pages.getPageFromDb(args.id)
       if (page) {
-        if (WIKI.auth.checkAccess(context.req.user, ['write:pages', 'manage:pages'], {
+        if (reviewHelper.canEditReviewPage(context.req.user, page) || WIKI.auth.checkAccess(context.req.user, ['write:pages', 'manage:pages'], {
           path: page.path,
           locale: page.localeCode
         })) {
@@ -408,6 +501,32 @@ module.exports = {
       }
     },
     /**
+     * CREATE REVIEW DRAFT
+     */
+    async createReviewDraft (obj, args, context) {
+      try {
+        if (!reviewHelper.isAuthenticatedUser(context.req.user)) {
+          throw new WIKI.Error.PageCreateForbidden()
+        }
+        const page = await WIKI.models.pages.createPage({
+          ...args,
+          editor: args.editor || 'markdown',
+          isPrivate: false,
+          isPublished: false,
+          locale: reviewHelper.getRootLocale(),
+          path: reviewHelper.getRootPath(),
+          isReviewDraft: true,
+          user: context.req.user
+        })
+        return {
+          responseResult: graphHelper.generateSuccess('Review draft created successfully.'),
+          page
+        }
+      } catch (err) {
+        return graphHelper.generateError(err)
+      }
+    },
+    /**
      * UPDATE PAGE
      */
     async update(obj, args, context) {
@@ -419,6 +538,57 @@ module.exports = {
         return {
           responseResult: graphHelper.generateSuccess('Page has been updated.'),
           page
+        }
+      } catch (err) {
+        return graphHelper.generateError(err)
+      }
+    },
+    /**
+     * SUBMIT REVIEW DRAFT
+     */
+    async submitReviewDraft (obj, args, context) {
+      try {
+        if (!reviewHelper.isAuthenticatedUser(context.req.user)) {
+          throw new WIKI.Error.PageUpdateForbidden()
+        }
+        await WIKI.models.pages.submitReviewDraft({
+          ...args,
+          user: context.req.user
+        })
+        return {
+          responseResult: graphHelper.generateSuccess('Review draft submitted successfully.')
+        }
+      } catch (err) {
+        return graphHelper.generateError(err)
+      }
+    },
+    /**
+     * APPROVE REVIEW DRAFT
+     */
+    async approveReviewDraft (obj, args, context) {
+      try {
+        await WIKI.models.pages.approveReviewDraft({
+          ...args,
+          user: context.req.user
+        })
+        return {
+          responseResult: graphHelper.generateSuccess('Review draft approved successfully.')
+        }
+      } catch (err) {
+        return graphHelper.generateError(err)
+      }
+    },
+    /**
+     * REJECT REVIEW DRAFT
+     */
+    async rejectReviewDraft (obj, args, context) {
+      try {
+        await WIKI.models.pages.rejectReviewDraft({
+          ...args,
+          user: context.req.user
+        })
+        return {
+          responseResult: graphHelper.generateSuccess('Review draft rejected successfully.')
         }
       } catch (err) {
         return graphHelper.generateError(err)
@@ -621,6 +791,18 @@ module.exports = {
     }
   },
   Page: {
+    locale (obj) {
+      return obj.locale || obj.localeCode
+    },
+    editor (obj) {
+      return obj.editor || obj.editorKey
+    },
+    scriptJs (obj) {
+      return _.get(obj, 'scriptJs', _.get(obj, 'extra.js', ''))
+    },
+    scriptCss (obj) {
+      return _.get(obj, 'scriptCss', _.get(obj, 'extra.css', ''))
+    },
     async tags (obj) {
       return WIKI.models.pages.relatedQuery('tags').for(obj.id)
     }
