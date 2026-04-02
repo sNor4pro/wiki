@@ -258,6 +258,46 @@ module.exports = () => {
         throw new Error('Incorrect groups auto-increment configuration! Should start at 0 and increment by 1. Contact your database administrator.')
       }
 
-      // Load local authentication strategy
+      await WIKI.models.users.query().insert({
+        email: req.body.adminEmail,
+        name: 'Administrator',
+        providerKey: 'local',
+        passwordRaw: req.body.adminPassword,
+        localeCode: 'en',
+        defaultEditor: 'markdown',
+        tfaIsActive: false,
+        isSystem: true,
+        isActive: true
+      })
+      await WIKI.models.groups.relatedQuery('users').for(adminGroup.id).relate(1)
+
+      await WIKI.models.groups.query().patch({ permissions: JSON.stringify(['read:pages', 'read:assets', 'read:comments']) }).where('id', guestGroup.id)
+
+      await WIKI.models.storage.query().insert({
+        isEnabled: true,
+        key: 'local',
+        mode: 'push',
+        config: '{}'
+      })
+
       await WIKI.models.authentication.query().insert({
         key: 'local',
+        strategyKey: 'local',
+        displayName: 'Local',
+        order: 0,
+        isEnabled: true,
+        config: '{}',
+        selfRegistration: false
+      })
+
+      res.json({ ok: true })
+    } catch (err) {
+      res.status(500).json({
+        ok: false,
+        error: err.message
+      })
+    }
+  })
+
+  WIKI.servers.http = http.createServer(app)
+}

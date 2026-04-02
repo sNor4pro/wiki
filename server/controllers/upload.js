@@ -43,6 +43,41 @@ router.post('/u', (req, res, next) => {
     })
   }
 
+  // Check review draft context
+  let pageId = 0
+  let reviewContext = false
+  try {
+    const pageIdRaw = _.get(req, 'body.pageId', null)
+    if (!_.isNil(pageIdRaw) && _.toString(pageIdRaw) !== '') {
+      pageId = _.toSafeInteger(pageIdRaw)
+    } else {
+      const uploadMetaInput = _.get(req, 'body.mediaUpload', false)
+      const uploadMetaRaw = _.isArray(uploadMetaInput) ? _.find(uploadMetaInput, _.isString) : uploadMetaInput
+      if (uploadMetaRaw) {
+        const uploadMeta = JSON.parse(uploadMetaRaw)
+        pageId = _.toSafeInteger(_.get(uploadMeta, 'pageId', 0))
+        reviewContext = _.get(uploadMeta, 'reviewContext', false) === true
+      }
+    }
+  } catch (err) {
+    pageId = 0
+    reviewContext = false
+  }
+
+  if (_.get(WIKI.config, 'review.blockUploads', true) && (reviewContext || pageId > 0)) {
+    let isBlocked = reviewContext
+    if (!isBlocked && pageId > 0) {
+      const page = await WIKI.models.pages.query().select('id', 'path', 'localeCode', 'isReviewDraft', 'reviewOwnerId').findById(pageId)
+      isBlocked = !!page && (page.isReviewDraft === true || page.isReviewDraft === 1)
+    }
+    if (isBlocked) {
+      return res.status(403).json({
+        succeeded: false,
+        message: 'Uploads are disabled for review drafts.'
+      })
+    }
+  }
+
   // Get folder Id
   let folderId = null
   try {

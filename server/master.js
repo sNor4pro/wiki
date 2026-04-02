@@ -138,28 +138,79 @@ module.exports = async () => {
   app.locals.devMode = WIKI.devMode
 
   // ----------------------------------------
-  // Renderers
+  // HMR (Dev Mode Only)
   // ----------------------------------------
 
-  const renderer = autoload(path.join(WIKI.SERVERPATH, '/helpers'))
-  app.use(renderer.common)
+  if (global.DEV) {
+    app.use(global.WP_DEV.devMiddleware)
+    app.use(global.WP_DEV.hotMiddleware)
+  }
 
   // ----------------------------------------
-  // Mount controllers
+  // Routing
   // ----------------------------------------
 
-  app.use(ctrl.common)
-  app.use(ctrl.pages)
-  app.use(ctrl.comments)
-  app.use(ctrl.auth)
-  app.use(ctrl.upload)
-  app.use(ctrl.user)
+  app.use(async (req, res, next) => {
+    res.locals.siteConfig = {
+      title: WIKI.config.title,
+      theme: WIKI.config.theming.theme,
+      darkMode: WIKI.config.theming.darkMode,
+      tocPosition: WIKI.config.theming.tocPosition || 'left',
+      lang: WIKI.config.lang.code,
+      rtl: WIKI.config.lang.rtl,
+      company: WIKI.config.company,
+      contentLicense: WIKI.config.contentLicense,
+      footerOverride: WIKI.config.footerOverride,
+      logoUrl: WIKI.config.logoUrl
+    }
+    res.locals.langs = await WIKI.models.locales.getNavLocales({ cache: true })
+    res.locals.analyticsCode = await WIKI.models.analytics.getCode({ cache: true })
+    next()
+  })
+
+  app.use('/', ctrl.auth)
+  app.use('/', ctrl.upload)
+  app.use('/', ctrl.rag)
+  app.use('/', ctrl.common)
 
   // ----------------------------------------
   // Error handling
   // ----------------------------------------
 
-  app.use(mw.error)
+  app.use((req, res, next) => {
+    const err = new Error('Not Found')
+    err.status = 404
+    next(err)
+  })
 
-  WIKI.servers.http = http.createServer(app)
+  app.use((err, req, res, next) => {
+    if (req.path === '/graphql') {
+      res.status(err.status || 500).json({
+        data: {},
+        errors: [{
+          message: err.message,
+          path: []
+        }]
+      })
+    } else {
+      res.status(err.status || 500)
+      _.set(res.locals, 'pageMeta.title', 'Error')
+      res.render('error', {
+        message: err.message,
+        error: WIKI.IS_DEBUG ? err : {}
+      })
+    }
+  })
+
+  // ----------------------------------------
+  // Start HTTP Server(s)
+  // ----------------------------------------
+
+  await WIKI.servers.startHTTP()
+
+  if (WIKI.config.ssl.enabled === true || WIKI.config.ssl.enabled === 'true' || WIKI.config.ssl.enabled === 1 || WIKI.config.ssl.enabled === '1') {
+    await WIKI.servers.startHTTPS()
+  }
+
+  return true
 }
