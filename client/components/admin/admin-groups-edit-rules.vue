@@ -205,7 +205,7 @@ const nanoid = customAlphabet('1234567890abcdef', 10)
 
 export default {
   props: {
-    value: {
+    modelValue: {
       type: Object,
       default: () => ({})
     }
@@ -239,8 +239,8 @@ export default {
   },
   computed: {
     group: {
-      get() { return this.value },
-      set(val) { this.$emit('input', val) }
+      get() { return this.modelValue },
+      set(val) { this.$emit('update:modelValue', val) }
     },
     locales() { return siteLangs }
   },
