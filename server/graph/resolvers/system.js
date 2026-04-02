@@ -1,7 +1,7 @@
 const _ = require('lodash')
 const getos = require('getos')
 const os = require('os')
-const filesize = require('filesize')
+const { filesize } = require('filesize')
 const path = require('path')
 const fs = require('fs-extra')
 const moment = require('moment')
