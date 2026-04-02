@@ -417,3 +417,199 @@ router.get(['/s', '/s/*'], async (req, res, next) => {
     res.redirect(`/${pageArgs.path}`)
   }
 })
+
+/**
+ * Tags
+ */
+router.get(['/t', '/t/*'], (req, res, next) => {
+  _.set(res.locals, 'pageMeta.title', 'Tags')
+  res.render('tags')
+})
+
+/**
+ * User Avatar
+ */
+router.get('/_userav/:uid', async (req, res, next) => {
+  if (!WIKI.auth.checkAccess(req.user, ['read:pages'])) {
+    return res.sendStatus(403)
+  }
+  const av = await WIKI.models.users.getUserAvatarData(req.params.uid)
+  if (av) {
+    res.set('Content-Type', 'image/jpeg')
+    res.send(av)
+  }
+
+  return res.sendStatus(404)
+})
+
+/**
+ * View document / asset
+ */
+router.get('/*', async (req, res, next) => {
+  const stripExt = _.some(WIKI.config.pageExtensions, ext => _.endsWith(req.path, `.${ext}`))
+  const pageArgs = pageHelper.parsePath(req.path, { stripExt })
+  const isPage = (stripExt || pageArgs.path.indexOf('.') === -1)
+
+  if (isPage) {
+    if (WIKI.config.lang.namespacing && !pageArgs.explicitLocale) {
+      const query = !_.isEmpty(req.query) ? `?${qs.stringify(req.query)}` : ''
+      return res.redirect(`/${pageArgs.locale}/${pageArgs.path}${query}`)
+    }
+
+    req.i18n.changeLanguage(pageArgs.locale)
+
+    try {
+      // -> Get Page from cache
+      const page = await WIKI.models.pages.getPage({
+        path: pageArgs.path,
+        locale: pageArgs.locale,
+        userId: req.user.id,
+        isPrivate: false
+      })
+      pageArgs.tags = _.get(page, 'tags', [])
+
+      // -> Effective Permissions
+      const effectivePermissions = getEffectivePagePermissions(req, pageArgs, page)
+
+      // -> Check User Access
+      if (!effectivePermissions.pages.read) {
+        if (req.user.id === 2) {
+          res.cookie('loginRedirect', req.path, {
+            maxAge: 15 * 60 * 1000
+          })
+        }
+        if (pageArgs.path === 'home' && req.user.id === 2) {
+          return res.redirect('/login')
+        }
+        _.set(res.locals, 'pageMeta.title', 'Unauthorized')
+        return res.status(403).render('unauthorized', {
+          action: 'view'
+        })
+      }
+
+      _.set(res, 'locals.siteConfig.lang', pageArgs.locale)
+      _.set(res, 'locals.siteConfig.rtl', req.i18n.dir() === 'rtl')
+
+      if (page) {
+        _.set(res.locals, 'pageMeta.title', page.title)
+        _.set(res.locals, 'pageMeta.description', page.description)
+
+        // -> Check Publishing State
+        let pageIsPublished = page.isPublished
+        if (pageIsPublished && !_.isEmpty(page.publishStartDate)) {
+          pageIsPublished = moment(page.publishStartDate).isSameOrBefore()
+        }
+        if (pageIsPublished && !_.isEmpty(page.publishEndDate)) {
+          pageIsPublished = moment(page.publishEndDate).isSameOrAfter()
+        }
+        if (!pageIsPublished && !effectivePermissions.pages.write) {
+          _.set(res.locals, 'pageMeta.title', 'Unauthorized')
+          return res.status(403).render('unauthorized', {
+            action: 'view'
+          })
+        }
+
+        // -> Build sidebar navigation
+        let sdi = 1
+        const sidebar = (await WIKI.models.navigation.getTree({ cache: true, locale: pageArgs.locale, groups: req.user.groups })).map(n => ({
+          i: `sdi-${sdi++}`,
+          k: n.kind,
+          l: n.label,
+          c: n.icon,
+          y: n.targetType,
+          t: n.target
+        }))
+
+        // -> Build theme code injection
+        const injectCode = {
+          css: WIKI.config.theming.injectCSS,
+          head: WIKI.config.theming.injectHead,
+          body: WIKI.config.theming.injectBody
+        }
+
+        // Handle missing extra field
+        page.extra = page.extra || { css: '', js: '' }
+
+        if (!_.isEmpty(page.extra.css)) {
+          injectCode.css = `${injectCode.css}\n${page.extra.css}`
+        }
+
+        if (!_.isEmpty(page.extra.js)) {
+          injectCode.body = `${injectCode.body}\n${page.extra.js}`
+        }
+
+        if (req.query.legacy || (req.get('user-agent') && req.get('user-agent').indexOf('Trident') >= 0)) {
+          // -> Convert page TOC
+          if (_.isString(page.toc)) {
+            page.toc = JSON.parse(page.toc)
+          }
+
+          // -> Render legacy view
+          res.render('legacy/page', {
+            page,
+            sidebar,
+            injectCode,
+            isAuthenticated: req.user && req.user.id !== 2
+          })
+        } else {
+          // -> Convert page TOC
+          if (!_.isString(page.toc)) {
+            page.toc = JSON.stringify(page.toc)
+          }
+
+          // -> Inject comments variables
+          const commentTmpl = {
+            codeTemplate: WIKI.data.commentProvider.codeTemplate,
+            head: WIKI.data.commentProvider.head,
+            body: WIKI.data.commentProvider.body,
+            main: WIKI.data.commentProvider.main
+          }
+          if (WIKI.config.features.featurePageComments && WIKI.data.commentProvider.codeTemplate) {
+            [
+              { key: 'pageUrl', value: `${WIKI.config.host}/i/${page.id}` },
+              { key: 'pageId', value: page.id }
+            ].forEach((cfg) => {
+              commentTmpl.head = _.replace(commentTmpl.head, new RegExp(`{{${cfg.key}}}`, 'g'), cfg.value)
+              commentTmpl.body = _.replace(commentTmpl.body, new RegExp(`{{${cfg.key}}}`, 'g'), cfg.value)
+              commentTmpl.main = _.replace(commentTmpl.main, new RegExp(`{{${cfg.key}}}`, 'g'), cfg.value)
+            })
+          }
+
+          // -> Page Filename (for edit on external repo button)
+          let pageFilename = WIKI.config.lang.namespacing ? `${pageArgs.locale}/${page.path}` : page.path
+          pageFilename += page.contentType === 'markdown' ? '.md' : '.html'
+
+          // -> Render view
+          res.render('page', {
+            page,
+            sidebar,
+            injectCode,
+            comments: commentTmpl,
+            effectivePermissions,
+            pageFilename
+          })
+        }
+      } else if (pageArgs.path === 'home') {
+        _.set(res.locals, 'pageMeta.title', 'Welcome')
+        res.render('welcome', { locale: pageArgs.locale })
+      } else {
+        _.set(res.locals, 'pageMeta.title', 'Page Not Found')
+        if (effectivePermissions.pages.write) {
+          res.status(404).render('new', { path: pageArgs.path, locale: pageArgs.locale })
+        } else {
+          res.status(404).render('notfound', { action: 'view' })
+        }
+      }
+    } catch (err) {
+      next(err)
+    }
+  } else {
+    if (!WIKI.auth.checkAccess(req.user, ['read:assets'], pageArgs)) {
+      return res.sendStatus(403)
+    }
+
+    await WIKI.models.assets.getAsset(pageArgs.path, res)
+  }
+})
+
+module.exports = router
