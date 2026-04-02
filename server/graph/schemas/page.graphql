@@ -19,12 +19,12 @@ type PageQuery {
     id: Int!
     offsetPage: Int
     offsetSize: Int
-  ): PageHistoryResult @auth(requires: ["manage:system", "read:history"])
+  ): PageHistoryResult @auth(requires: ["manage:system", "read:history", "read:pages"])
 
   version(
     pageId: Int!
     versionId: Int!
-  ): PageVersion @auth(requires: ["manage:system", "read:history"])
+  ): PageVersion @auth(requires: ["manage:system", "read:history", "read:pages"])
 
   search(
     query: String!
@@ -44,12 +44,12 @@ type PageQuery {
 
   single(
     id: Int!
-  ): Page @auth(requires: ["read:pages", "manage:system"])
+  ): Page @auth(requires: ["read:pages", "manage:pages", "delete:pages", "manage:system"])
 
   singleByPath(
     path: String!
     locale: String!
-  ): Page @auth(requires: ["read:pages", "manage:system"])
+  ): Page @auth(requires: ["read:pages", "manage:pages", "delete:pages", "manage:system"])
 
   tags: [PageTag]! @auth(requires: ["manage:system", "read:pages"])
 
@@ -69,14 +69,21 @@ type PageQuery {
     locale: String!
   ): [PageLinkItem] @auth(requires: ["manage:system", "read:pages"])
 
+  reviewQueue(
+    status: String
+    ownerOnly: Boolean
+    limit: Int
+    offset: Int
+  ): ReviewQueueResponse! @auth(requires: ["manage:system", "manage:pages", "read:pages"])
+
   checkConflicts(
     id: Int!
     checkoutDate: Date!
-  ): Boolean! @auth(requires: ["write:pages", "manage:pages", "manage:system"])
+  ): Boolean! @auth(requires: ["read:pages", "write:pages", "manage:pages", "manage:system"])
 
   conflictLatest(
     id: Int!
-  ): PageConflictLatest! @auth(requires: ["write:pages", "manage:pages", "manage:system"])
+  ): PageConflictLatest! @auth(requires: ["read:pages", "write:pages", "manage:pages", "manage:system"])
 }
 
 # -----------------------------------------------
@@ -115,7 +122,32 @@ type PageMutation {
     scriptJs: String
     tags: [String]
     title: String
-  ): PageResponse @auth(requires: ["write:pages", "manage:pages", "manage:system"])
+  ): PageResponse @auth(requires: ["read:pages", "write:pages", "manage:pages", "manage:system"])
+
+  createReviewDraft(
+    content: String!
+    description: String!
+    editor: String
+    tags: [String]!
+    title: String!
+  ): PageResponse @auth(requires: ["manage:system", "read:pages"])
+
+  submitReviewDraft(
+    id: Int!
+  ): DefaultResponse @auth(requires: ["manage:system", "read:pages"])
+
+  approveReviewDraft(
+    id: Int!
+    destinationLocale: String!
+    destinationPath: String!
+    note: String
+    publishNow: Boolean
+  ): DefaultResponse @auth(requires: ["manage:system", "manage:pages", "read:pages"])
+
+  rejectReviewDraft(
+    id: Int!
+    note: String
+  ): DefaultResponse @auth(requires: ["manage:system", "manage:pages", "read:pages"])
 
   convert(
     id: Int!
@@ -187,9 +219,16 @@ type Page {
   description: String!
   isPrivate: Boolean! @auth(requires: ["write:pages", "manage:system"])
   isPublished: Boolean! @auth(requires: ["write:pages", "manage:system"])
+  isReviewDraft: Boolean!
   privateNS: String @auth(requires: ["write:pages", "manage:system"])
   publishStartDate: Date! @auth(requires: ["write:pages", "manage:system"])
   publishEndDate: Date! @auth(requires: ["write:pages", "manage:system"])
+  reviewStatus: String!
+  reviewOwnerId: Int
+  reviewSubmittedAt: Date
+  reviewDecisionAt: Date
+  reviewDecisionById: Int
+  reviewDecisionNote: String
   tags: [PageTag]!
   content: String! @auth(requires: ["read:source", "write:pages", "manage:system"])
   render: String
@@ -262,10 +301,18 @@ type PageSearchResponse {
 
 type PageSearchResult {
   id: String!
+  pageId: Int
   title: String!
   description: String!
   path: String!
   locale: String!
+  contentMode: String
+  sectionType: String
+  sectionIndex: Int
+  sectionKey: String
+  sectionHeading: String
+  sectionAnchor: String
+  snippetPreview: String
 }
 
 type PageListItem {
@@ -316,6 +363,32 @@ type PageConflictLatest {
   tags: [String]
   title: String!
   updatedAt: Date!
+}
+
+type ReviewQueueResponse {
+  results: [ReviewQueueItem!]!
+  total: Int!
+  canReview: Boolean!
+}
+
+type ReviewQueueItem {
+  id: Int!
+  path: String!
+  locale: String!
+  title: String!
+  description: String!
+  tags: [String!]!
+  createdAt: Date!
+  updatedAt: Date!
+  isReviewDraft: Boolean!
+  reviewStatus: String!
+  reviewOwnerId: Int
+  reviewOwnerName: String
+  reviewSubmittedAt: Date
+  reviewDecisionAt: Date
+  reviewDecisionById: Int
+  reviewDecisionByName: String
+  reviewDecisionNote: String
 }
 
 enum PageOrderBy {
