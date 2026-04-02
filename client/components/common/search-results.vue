@@ -18,7 +18,7 @@
         v-subheader.white--text {{$t('common:header.searchResultsCount', { total: response.totalHits })}}
         v-list.search-results-items.radius-7.py-0(two-line, dense)
           template(v-for='(item, idx) of results', :key='idx')
-            v-list-item(@click='goToPage(item)', @click.middle="goToPageInNewTab(item)", :key='item.id', :class='idx === cursor ? `highlighted` : ``')
+            v-list-item(@click='goToPage(item)', @click.middle="goToPageInNewTab(item)", :class='idx === cursor ? `highlighted` : ``')
               v-list-item-avatar(tile)
                 img(src='/_assets/svg/icon-selective-highlighting.svg')
               v-list-item-content
@@ -51,7 +51,7 @@
         v-list.search-results-ai-items.radius-7.py-0(two-line, dense)
           template(v-if='aiResults.length > 0')
             template(v-for='(item, idx) of aiResults', :key='idx')
-              v-list-item(@click='goToPage(item)', @click.middle='goToPageInNewTab(item)', :key='`ai-${item.locale}-${item.path}-${idx}`')
+              v-list-item(@click='goToPage(item)', @click.middle='goToPageInNewTab(item)')
                 v-list-item-avatar(tile)
                   img.search-results-ai-item-icon(:src='aiIconUrl', alt='AI')
                 v-list-item-content
@@ -67,7 +67,7 @@
         v-subheader.white--text.mt-3 {{$t('common:header.searchDidYouMean')}}
         v-list.search-results-suggestions.radius-7(dense, dark)
           template(v-for='(term, idx) of suggestions', :key='idx')
-            v-list-item(:key='term', @click='setSearchTerm(term)', :class='idx + results.length === cursor ? `highlighted` : ``')
+            v-list-item(, @click='setSearchTerm(term)', :class='idx + results.length === cursor ? `highlighted` : ``')
               v-list-item-avatar
                 v-icon mdi-magnify
               v-list-item-content

@@ -28,7 +28,7 @@
               v-icon mdi-format-header-pound
           v-list.py-0
             template(v-for='(n, idx) in 6', :key='idx')
-              v-list-item(@click='setHeaderLine(n)', :key='idx')
+              v-list-item(@click='setHeaderLine(n)')
                 v-list-item-action
                   v-icon(:size='24 - (idx - 1) * 2') mdi-format-header-{{n}}
                 v-list-item-title {{$t('editor:markup.heading', { level: n })}}

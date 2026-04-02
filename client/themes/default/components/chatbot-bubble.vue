@@ -48,7 +48,7 @@
 
           .chatbot-messages(ref='messages')
             template(v-for='(msg, idx) in messages', :key='idx')
-              .chatbot-message(:key='`msg-${idx}`', :class='`is-${msg.role}`')
+              .chatbot-message(, :class='`is-${msg.role}`')
                 .chatbot-message-title {{ msg.role === 'user' ? 'Du' : 'Assistent' }}
                 .chatbot-message-text.chatbot-message-text--markdown(v-if='msg.role === `assistant`', v-html='renderAssistantMessage(msg.text)')
                 .chatbot-message-text.chatbot-message-text--plain(v-else) {{ msg.text }}
@@ -57,7 +57,7 @@
                   v-list.chatbot-source-list(dense)
                     v-list-item(
                       v-for='(src, sIdx) in displaySources(msg)'
-                      :key='`src-${idx}-${sIdx}`'
+
                       :href='sourceHref(src)'
                       target='_blank'
                     )

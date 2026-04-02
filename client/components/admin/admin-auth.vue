@@ -49,7 +49,7 @@
               v-list(dense)
                 template(v-for='(str, idx) of strategies', :key='idx')
                   v-list-item(
-                    :key='str.key'
+
                     :disabled='str.isDisabled'
                     @click='addStrategy(str)'
                     )
@@ -106,7 +106,7 @@
                     v-if='cfg.value.type === "string" && cfg.value.enum'
                     outlined
                     :items='cfg.value.enum'
-                    :key='cfg.key'
+
                     :label='cfg.value.title'
                     v-model='cfg.value.value'
                     prepend-icon='mdi-cog-box'
@@ -117,7 +117,7 @@
                   )
                   v-switch.mb-6(
                     v-else-if='cfg.value.type === "boolean"'
-                    :key='cfg.key'
+
                     :label='cfg.value.title'
                     v-model='cfg.value.value'
                     color='primary'
@@ -129,7 +129,7 @@
                   v-textarea.mb-3(
                     v-else-if='cfg.value.type === "string" && cfg.value.multiline'
                     outlined
-                    :key='cfg.key'
+
                     :label='cfg.value.title'
                     v-model='cfg.value.value'
                     prepend-icon='mdi-cog-box'
@@ -140,7 +140,7 @@
                   v-text-field.mb-3(
                     v-else
                     outlined
-                    :key='cfg.key'
+
                     :label='cfg.value.title'
                     v-model='cfg.value.value'
                     prepend-icon='mdi-cog-box'

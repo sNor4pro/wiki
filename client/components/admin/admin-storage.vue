@@ -22,7 +22,7 @@
             .subtitle-1 {{$t('admin:storage.targets')}}
           v-list(two-line, dense).py-0
             template(v-for='(tgt, idx) in targets', :key='idx')
-              v-list-item(:key='tgt.key', @click='selectedTarget = tgt.key', :disabled='!tgt.isAvailable')
+              v-list-item(, @click='selectedTarget = tgt.key', :disabled='!tgt.isAvailable')
                 v-list-item-avatar(size='24')
                   v-icon(color='grey', v-if='!tgt.isAvailable') mdi-minus-box-outline
                   v-icon(color='primary', v-else-if='tgt.isEnabled', v-ripple, @click='tgt.key !== `local` && (tgt.isEnabled = false)') mdi-checkbox-marked-outline
@@ -45,7 +45,7 @@
             )
           v-list.py-0(two-line, dense)
             template(v-for='(tgt, n) in status', :key='n')
-              v-list-item(:key='tgt.key')
+              v-list-item()
                 template(v-if='tgt.status === `pending`')
                   v-list-item-avatar(color='purple')
                     v-icon(color='white') mdi-clock-outline

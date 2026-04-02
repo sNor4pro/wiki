@@ -30,7 +30,7 @@
           dense
           )
           template(v-for='(usr, idx) in items', :key='idx')
-            v-list-item(:key='usr.id', @click='setUser(usr)')
+            v-list-item(, @click='setUser(usr)')
               v-list-item-avatar(size='40', color='primary')
                 span.body-1.white--text {{usr.name | initials}}
               v-list-item-content

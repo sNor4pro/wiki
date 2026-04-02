@@ -20,7 +20,7 @@
             .subtitle-1 {{$t('admin:analytics.providers')}}
           v-list(two-line, dense).py-0
             template(v-for='(str, idx) in providers', :key='idx')
-              v-list-item(:key='str.key', @click='selectedProvider = str.key', :disabled='!str.isAvailable')
+              v-list-item(, @click='selectedProvider = str.key', :disabled='!str.isAvailable')
                 v-list-item-avatar(size='24')
                   v-icon(color='grey', v-if='!str.isAvailable') mdi-minus-box-outline
                   v-icon(color='primary', v-else-if='str.isEnabled', v-ripple, @click='str.isEnabled = false') mdi-checkbox-marked-outline

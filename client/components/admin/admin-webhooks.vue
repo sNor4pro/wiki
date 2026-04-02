@@ -22,7 +22,7 @@
               span New
           v-list(two-line, dense).py-0
             template(v-for='(str, idx) in hooks', :key='idx')
-              v-list-item(:key='str.key', @click='selectedHook = str.key')
+              v-list-item(, @click='selectedHook = str.key')
                 v-list-item-avatar
                   v-icon(color='primary', v-if='str.isEnabled', v-ripple, @click='str.isEnabled = false') check_box
                   v-icon(color='grey', v-else, v-ripple, @click='str.isEnabled = true') check_box_outline_blank

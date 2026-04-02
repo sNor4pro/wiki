@@ -17,7 +17,7 @@
               template(v-for='(pm, idx) in pmGroup.items', :key='idx')
                 v-checkbox.pt-0(
                   style='justify-content: space-between;'
-                  :key='pm.permission'
+
                   :label='pm.permission'
                   :hint='pm.hint'
                   persistent-hint

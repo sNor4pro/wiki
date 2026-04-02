@@ -52,7 +52,7 @@
               v-list.py-0(two-line, dense)
                 template(v-for='(rdr, n) in core.children', :key='n')
                   v-list-item(
-                    :key='rdr.key'
+
                     @click='selectRenderer(rdr.key)'
                     :class='currentRenderer.key === rdr.key ? ($vuetify.theme.dark ? `grey darken-4-l4` : `blue lighten-5`) : ``'
                     )

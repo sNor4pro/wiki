@@ -9,8 +9,8 @@
             v-list-item-title {{$t('common:header.home')}}
           template(v-for='(tags, groupName) in tagsGrouped', :key='groupName')
             v-divider.my-2
-            v-subheader.pl-4(:key='`tagGroup-` + groupName') {{groupName}}
-            v-list-item(v-for='tag of tags', @click='toggleTag(tag.tag)', :key='`tag-` + tag.tag')
+            v-subheader.pl-4() {{groupName}}
+            v-list-item(v-for='tag of tags', @click='toggleTag(tag.tag)')
               v-list-item-icon
                 v-icon(v-if='isSelected(tag.tag)', color='primary') mdi-checkbox-intermediate
                 v-icon(v-else) mdi-checkbox-blank-outline
