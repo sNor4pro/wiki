@@ -2421,7 +2421,8 @@ module.exports = {
           .catch(reject)
       }
 
-      const reader = upstreamResp.body
+      const { Readable } = require('stream')
+      const reader = Readable.fromWeb(upstreamResp.body)
       reader.setEncoding('utf8')
 
       reader.on('data', chunk => {
@@ -2533,7 +2534,8 @@ module.exports = {
           .catch(reject)
       }
 
-      const reader = upstreamResp.body
+      const { Readable } = require('stream')
+      const reader = Readable.fromWeb(upstreamResp.body)
       reader.setEncoding('utf8')
 
       reader.on('data', chunk => {
