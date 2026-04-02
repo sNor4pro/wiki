@@ -47,7 +47,7 @@
               v-btn(value='detailed', small, text) Detail
 
           .chatbot-messages(ref='messages')
-            template(v-for='(msg, idx) in messages')
+            template(v-for='(msg, idx) in messages', :key='idx')
               .chatbot-message(:key='`msg-${idx}`', :class='`is-${msg.role}`')
                 .chatbot-message-title {{ msg.role === 'user' ? 'Du' : 'Assistent' }}
                 .chatbot-message-text.chatbot-message-text--markdown(v-if='msg.role === `assistant`', v-html='renderAssistantMessage(msg.text)')

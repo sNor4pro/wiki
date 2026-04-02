@@ -240,8 +240,9 @@ export default {
   computed: {
     group: {
       get() { return this.value },
-      set(val) { 'input'[val) }
-    }] = locales( { return siteLangs }
+      set(val) { this.$emit('input', val) }
+    },
+    locales() { return siteLangs }
   },
   methods: {
     addRule(group) {

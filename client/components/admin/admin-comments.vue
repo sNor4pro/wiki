@@ -21,7 +21,7 @@
           v-toolbar(flat, color='primary', dark, dense)
             .subtitle-1 {{$t('admin:comments.provider')}}
           v-list.py-0(two-line, dense)
-            template(v-for='(provider, idx) in providers')
+            template(v-for='(provider, idx) in providers', :key='idx')
               v-list-item(:key='provider.key', @click='selectedProvider = provider.key', :disabled='!provider.isAvailable')
                 v-list-item-avatar(size='24')
                   v-icon(color='grey', v-if='!provider.isAvailable') mdi-minus-box-outline

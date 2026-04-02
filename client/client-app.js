@@ -9,7 +9,7 @@ import { WebSocketLink } from 'apollo-link-ws'
 import { ErrorLink } from 'apollo-link-error'
 import { InMemoryCache } from 'apollo-cache-inmemory'
 import { getMainDefinition } from 'apollo-utilities'
-import { DefaultApolloClient } from '@vue/apollo-composable'
+import apolloPlugin from './libs/apollo-plugin'
 import { createVuetify } from 'vuetify'
 import Velocity from 'velocity-animate'
 import moment from 'moment-timezone'
@@ -19,6 +19,7 @@ import { useMainStore } from './store'
 import { useUserStore } from './store/user'
 import compatStorePlugin from './libs/compat-store'
 import eventBus from './libs/event-bus'
+import VueScroll from './libs/vuescroll-stub'
 
 // ====================================
 // Load Modules
@@ -192,7 +193,7 @@ let bootstrap = () => {
   app.use(compatStorePlugin)
 
   // Provide Apollo client
-  app.provide(DefaultApolloClient, window.graphQL)
+  app.use(apolloPlugin, { apolloClient: window.graphQL })
 
   // Global properties
   app.config.globalProperties.Velocity = Velocity
@@ -227,6 +228,9 @@ let bootstrap = () => {
 
   app.component('NavFooter', defineAsyncComponent(() => import(/* webpackChunkName: "theme" */ './themes/' + siteConfig.theme + '/components/nav-footer.vue')))
   app.component('Page', defineAsyncComponent(() => import(/* webpackChunkName: "theme" */ './themes/' + siteConfig.theme + '/components/page.vue')))
+
+  // Register vuescroll replacement
+  app.component('VueScroll', VueScroll)
 
   window.WIKI = app.mount('#root')
 

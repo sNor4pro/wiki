@@ -90,7 +90,7 @@
                           v-list-item-content
                             em.caption.blue--text.text--lighten-4 {{$t('navigation.emptyList')}}
                         draggable(v-model='currentTree')
-                          template(v-for='navItem in currentTree')
+                          template(v-for='navItem in currentTree', :key='navItem')
                             v-list-item(
                               v-if='navItem.kind === "link"'
                               :key='navItem.id'

@@ -14,7 +14,7 @@
           v-card.md2(flat, :class='$vuetify.theme.dark ? "grey darken-3-d5" : "grey lighten-5"')
             .overline.px-5.pt-5.pb-3.grey--text.text--darken-2 {{pmGroup.category}}
             v-card-text.pt-0
-              template(v-for='(pm, idx) in pmGroup.items')
+              template(v-for='(pm, idx) in pmGroup.items', :key='idx')
                 v-checkbox.pt-0(
                   style='justify-content: space-between;'
                   :key='pm.permission'

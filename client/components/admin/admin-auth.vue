@@ -47,7 +47,7 @@
                   v-icon(left) mdi-plus
                   span {{$t('admin:auth.addStrategy')}}
               v-list(dense)
-                template(v-for='(str, idx) of strategies')
+                template(v-for='(str, idx) of strategies', :key='idx')
                   v-list-item(
                     :key='str.key'
                     :disabled='str.isDisabled'
@@ -101,7 +101,7 @@
               v-divider
               .overline.my-5 {{$t('admin:auth.strategyConfiguration')}}
               .pr-3
-                template(v-for='cfg in strategy.config')
+                template(v-for='cfg in strategy.config', :key='cfg')
                   v-select.mb-3(
                     v-if='cfg.value.type === "string" && cfg.value.enum'
                     outlined

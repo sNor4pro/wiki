@@ -111,7 +111,7 @@
                       v-icon(color='grey') mdi-web
                   span {{$t('common:header.language')}}
               v-list(nav)
-                template(v-for='(lc, idx) of locales')
+                template(v-for='(lc, idx) of locales', :key='idx')
                   v-list-item(@click='changeLocale(lc)')
                     v-list-item-action(style='min-width:auto;'): v-chip(:color='lc.code === locale ? `blue` : `grey`', small, label, dark) {{lc.code.toUpperCase()}}
                     v-list-item-title {{lc.name}}

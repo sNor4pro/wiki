@@ -22,7 +22,7 @@
             v-btn.animated.fadeIn.wait-p3s(icon, tile, v-on='on').mx-0
               v-icon mdi-format-header-pound
           v-list.py-0
-            template(v-for='(n, idx) in 6')
+            template(v-for='(n, idx) in 6', :key='idx')
               v-list-item(@click='setHeaderLine(n)', :key='idx')
                 v-list-item-action
                   v-icon(:size='24 - (idx - 1) * 2') mdi-format-header-{{n}}

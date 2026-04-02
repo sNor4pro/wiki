@@ -56,7 +56,7 @@
                   v-model='currentPage'
                   color='primary'
                   )
-                  template(v-for='(page, idx) of currentPages')
+                  template(v-for='(page, idx) of currentPages', :key='idx')
                     v-list-item(:key='`page-` + page.id', :value='page')
                       v-list-item-icon: v-icon mdi-text-box
                       v-list-item-title {{page.title}}

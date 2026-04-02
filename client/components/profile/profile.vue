@@ -318,7 +318,7 @@
             v-toolbar-title
               .subtitle-1 {{$t('profile:groups.title')}}
           v-list(dense)
-            template(v-for='(grp, idx) of user.groups')
+            template(v-for='(grp, idx) of user.groups', :key='idx')
               v-list-item(:key='`grp-id-` + grp')
                 v-list-item-avatar(size='32')
                   v-icon mdi-account-group

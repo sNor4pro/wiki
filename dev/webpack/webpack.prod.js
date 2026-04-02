@@ -220,6 +220,8 @@ module.exports = {
       '@': path.join(process.cwd(), 'client'),
       'vue$': 'vue/dist/vue.esm-bundler.js',
       'gql': path.join(process.cwd(), 'client/graph'),
+      'animated-number-vue': path.join(process.cwd(), 'client/libs/animated-number-stub.js'),
+      'vue-filepond': path.join(process.cwd(), 'client/libs/filepond-stub.js'),
       // Duplicates fixes:
       'apollo-link': path.join(process.cwd(), 'node_modules/apollo-link'),
       'apollo-utilities': path.join(process.cwd(), 'node_modules/apollo-utilities'),
@@ -235,7 +237,10 @@ module.exports = {
       'node_modules'
     ],
     fallback: {
-      fs: false
+      fs: false,
+      stream: false,
+      crypto: false,
+      path: false
     }
   },
   stats: {
