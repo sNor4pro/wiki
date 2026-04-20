@@ -21,6 +21,7 @@ module.exports = async () => {
   WIKI.auth = require('./core/auth').init()
   WIKI.lang = require('./core/localization').init()
   WIKI.mail = require('./core/mail').init()
+  WIKI.pandoc = require('./core/pandoc')
   WIKI.rag = require('./core/rag').init()
   WIKI.system = require('./core/system').init()
 
@@ -170,6 +171,7 @@ module.exports = async () => {
 
   app.use('/', ctrl.auth)
   app.use('/', ctrl.upload)
+  app.use('/', ctrl.pandoc)
   app.use('/', ctrl.rag)
   app.use('/', ctrl.common)
 

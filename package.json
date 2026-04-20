@@ -1,7 +1,7 @@
 {
   "name": "wiki",
   "version": "2.5.313",
-  "releaseDate": "2026-03-23T23:05:00.000Z",
+  "releaseDate": "2026-04-20T10:07:25.000Z",
   "description": "A modern, lightweight and powerful wiki app built on NodeJS, Git and Markdown",
   "main": "wiki.js",
   "dev": false,

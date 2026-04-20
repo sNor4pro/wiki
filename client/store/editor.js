@@ -7,6 +7,8 @@ const state = {
   mode: 'create',
   activeModal: '',
   activeModalData: null,
+  importMeta: null,
+  suppressNextPropsModal: false,
   media: {
     folderTree: [],
     currentFolderId: 0,

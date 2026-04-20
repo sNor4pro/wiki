@@ -55,6 +55,62 @@ export default {
     activeModal: sync('editor/activeModal')
   },
   methods: {
+    normalizePdfPath(input) {
+      if (!_.isString(input)) {
+        return null
+      }
+
+      const value = input.trim()
+      if (!value || value.startsWith('//')) {
+        return null
+      }
+
+      if (/^[a-z][a-z0-9+.-]*:/i.test(value)) {
+        return null
+      }
+
+      const pathOnly = value.replace(/[?#].*$/, '')
+      if (!pathOnly.startsWith('/')) {
+        return null
+      }
+
+      if (pathOnly.includes('\\') || /\s/.test(pathOnly)) {
+        return null
+      }
+
+      if (!/\.pdf$/i.test(pathOnly)) {
+        return null
+      }
+
+      return value
+    },
+    buildPdfEmbedMarkup(path, title) {
+      const pdfPath = this.normalizePdfPath(path)
+      if (!pdfPath) {
+        return ''
+      }
+
+      const safePath = _.escape(pdfPath)
+      const safeTitle = _.escape(title || _.last(pdfPath.replace(/[?#].*$/, '').split('/')) || 'PDF')
+
+      return [
+        `<div class="pdf-embed">`,
+        `  <iframe src="${safePath}" title="${safeTitle}" loading="lazy" width="100%" height="720" frameborder="0"></iframe>`,
+        `  <a href="${safePath}">PDF herunterladen</a>`,
+        `</div>`
+      ].join('\n')
+    },
+    insertHtml(html) {
+      if (!html) {
+        return
+      }
+
+      this.editor.model.change(() => {
+        const viewFragment = this.editor.data.processor.toView(html)
+        const modelFragment = this.editor.data.toModel(viewFragment)
+        this.editor.model.insertContent(modelFragment)
+      })
+    },
     insertLink () {
       this.insertLinkDialog = true
     },
@@ -110,6 +166,9 @@ export default {
           this.editor.execute('link', opts.path, {
             linkIsDownloadable: true
           })
+          break
+        case 'PDF':
+          this.insertHtml(this.buildPdfEmbedMarkup(opts.path, opts.text) || `<a href="${_.escape(opts.path)}" title="${_.escape(opts.text)}">PDF herunterladen</a>`)
           break
         case 'DIAGRAM':
           this.editor.execute('imageInsert', {

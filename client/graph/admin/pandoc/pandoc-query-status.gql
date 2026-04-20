@@ -1,0 +1,10 @@
+query {
+  pandocImport {
+    status {
+      isInstalled
+      version
+      binaryPath
+      statusMessage
+    }
+  }
+}

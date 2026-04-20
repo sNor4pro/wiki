@@ -1,0 +1,8 @@
+key: markdownPdfEmbed
+title: PDF Embed
+description: Embed internal PDF assets with a safe fallback link
+author: requarks.io
+icon: mdi-file-pdf-box
+enabledDefault: true
+dependsOn: markdownCore
+props: {}

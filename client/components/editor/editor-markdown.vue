@@ -111,6 +111,24 @@
                 v-icon mdi-book-open-outline
             span {{$t('editor:markup.togglePreviewPane')}}
     .editor-markdown-main
+      v-alert.mx-3.mt-3(
+        v-if='showImportBanner'
+        v-model='importBannerVisible'
+        type='info'
+        dense
+        outlined
+        dismissible
+        border='left'
+        color='teal'
+        icon='mdi-file-import-outline'
+      )
+        .body-2
+          strong Import erfolgreich.
+          span.ml-2 {{ importMeta.sourceFilename || 'Dokument' }} wurde in Markdown umgewandelt.
+        .caption.mt-1(v-if='importMeta.pipeline') Pipeline: {{ importMeta.pipeline }}
+        .caption.mt-1(v-if='importMeta.selectedReader || importMeta.selectedWriter')
+          | Reader: {{ importMeta.selectedReader || 'n/a' }} | Writer: {{ importMeta.selectedWriter || 'n/a' }}
+        .caption.mt-1(v-if='warningSummary') Warnungen: {{ warningSummary }}
       .editor-markdown-sidebar
         v-tooltip(right, color='teal')
           template(v-slot:activator='{ on }')
@@ -246,6 +264,55 @@ Prism.plugins.NormalizeWhitespace.setDefaults({
   'tabs-to-spaces': 2
 })
 
+function normalizePdfPath(input) {
+  if (!_.isString(input)) {
+    return null
+  }
+
+  const value = input.trim()
+  if (!value || value.startsWith('//')) {
+    return null
+  }
+
+  if (/^[a-z][a-z0-9+.-]*:/i.test(value)) {
+    return null
+  }
+
+  const pathOnly = value.replace(/[?#].*$/, '')
+  if (!pathOnly.startsWith('/')) {
+    return null
+  }
+
+  if (pathOnly.includes('\\') || /\s/.test(pathOnly)) {
+    return null
+  }
+
+  if (!/\.pdf$/i.test(pathOnly)) {
+    return null
+  }
+
+  return value
+}
+
+function buildPdfEmbedMarkup(input, title) {
+  const pdfPath = normalizePdfPath(input)
+  if (!pdfPath) {
+    return ''
+  }
+
+  const safePath = _.escape(pdfPath)
+  const safeTitle = _.escape(title || _.last(pdfPath.replace(/[?#].*$/, '').split('/')) || 'PDF')
+
+  return [
+    `<div class="pdf-embed">`,
+    `  <iframe src="${safePath}" title="${safeTitle}" loading="lazy" width="100%" height="720" frameborder="0"></iframe>`,
+    `  <a href="${safePath}">PDF herunterladen</a>`,
+    `</div>`
+  ].join('\n')
+}
+
+const PDF_EMBED_CLASS = 'pdf-embed'
+
 // Markdown Instance
 const md = new MarkdownIt({
   html: true,
@@ -280,7 +347,20 @@ const md = new MarkdownIt({
 
 // DOMPurify fix for draw.io
 DOMPurify.addHook('uponSanitizeElement', (elm) => {
-  if (elm.querySelectorAll) {
+  if (elm && elm.nodeName && elm.nodeName.toLowerCase() === 'iframe') {
+    const parent = elm.parentNode
+    const isPdfEmbed = Boolean(parent && parent.nodeType === 1 && parent.classList && parent.classList.contains(PDF_EMBED_CLASS))
+    const src = elm.getAttribute('src')
+    const pdfPath = normalizePdfPath(src)
+    if (!isPdfEmbed || !pdfPath) {
+      if (elm.parentNode) {
+        elm.parentNode.removeChild(elm)
+      }
+    }
+    return
+  }
+
+  if (elm && elm.querySelectorAll) {
     const breaks = elm.querySelectorAll('foreignObject br, foreignObject p')
     if (breaks && breaks.length) {
       for (let i = 0; i < breaks.length; i++) {
@@ -320,6 +400,43 @@ cmFold.register('markdown')
 
 // TODO: Use same options as defined in backend
 plantuml.init(md, {})
+
+// ========================================
+// PDF EMBED
+// ========================================
+
+md.block.ruler.before('paragraph', 'pdf_embed', (state, startLine, endLine, silent) => {
+  const start = state.bMarks[startLine] + state.tShift[startLine]
+  const max = state.eMarks[startLine]
+
+  if (start >= max) {
+    return false
+  }
+
+  if (state.src.charCodeAt(start) !== 64) {
+    return false
+  }
+
+  const line = state.src.slice(start, max).trim()
+  const match = line.match(/^@\[\s*pdf\s*\]\((.+?)\)\s*$/i)
+  if (!match) {
+    return false
+  }
+
+  if (silent) {
+    return true
+  }
+
+  const token = state.push('html_block', '', 0)
+  token.block = true
+  token.map = [startLine, startLine + 1]
+  token.content = buildPdfEmbedMarkup(match[1]) || `<p>${_.escape(line)}</p>`
+
+  state.line = startLine + 1
+  return true
+}, {
+  alt: ['paragraph', 'reference', 'blockquote', 'list']
+})
 
 // ========================================
 // KATEX
@@ -411,7 +528,8 @@ export default {
       previewHTML: '',
       helpShown: false,
       spellModeActive: false,
-      insertLinkDialog: false
+      insertLinkDialog: false,
+      importBannerVisible: true
     }
   },
   computed: {
@@ -424,6 +542,23 @@ export default {
     locale: get('page/locale'),
     path: get('page/path'),
     mode: get('editor/mode'),
+    importMeta: get('editor/importMeta'),
+    showImportBanner () {
+      return _.isPlainObject(this.importMeta) && this.importBannerVisible
+    },
+    warningSummary () {
+      const warnings = _.get(this.importMeta, 'warnings', [])
+      if (!_.isArray(warnings) || warnings.length < 1) {
+        return ''
+      }
+      return _.join(
+        _.filter(
+          _.map(warnings, w => _.toString(_.get(w, 'message', w))),
+          Boolean
+        ),
+        ' · '
+      )
+    },
     activeModal: sync('editor/activeModal')
   },
   watch: {
@@ -441,6 +576,12 @@ export default {
         this.$nextTick(() => {
           this.$refs.editorPreview.focus()
         })
+      }
+    },
+    importMeta: {
+      deep: true,
+      handler () {
+        this.importBannerVisible = true
       }
     }
   },
@@ -742,7 +883,8 @@ export default {
       // this.$store.set('editor/content', newContent)
       this.processMarkers(this.cm.firstLine(), this.cm.lastLine())
       this.previewHTML = DOMPurify.sanitize(md.render(newContent), {
-        ADD_TAGS: ['foreignObject'],
+        ADD_TAGS: ['foreignObject', 'iframe'],
+        ADD_ATTR: ['src', 'title', 'loading', 'width', 'height', 'frameborder', 'referrerpolicy'],
         HTML_INTEGRATION_POINTS: { foreignobject: true }
       })
       this.$nextTick(() => {
@@ -1126,6 +1268,13 @@ export default {
             content: `[${opts.text}](${opts.path})`
           })
           break
+        case 'PDF': {
+          const pdfPath = normalizePdfPath(opts.path)
+          this.insertAtCursor({
+            content: pdfPath ? `\n\n@[pdf](${pdfPath})\n\n` : `\n\n[PDF herunterladen](${opts.path})\n\n`
+          })
+          break
+        }
         case 'DIAGRAM':
           const selStartLine = this.cm.getCursor('from').line
           const selEndLine = this.cm.getCursor('to').line + 1

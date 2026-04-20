@@ -295,6 +295,53 @@ module.exports = {
   },
 
   /**
+   * Check if user can assign target groups to another user.
+   * This prevents write:users / write:groups scoped admins from assigning elevated groups.
+   *
+   * @param {User} user
+   * @param {Array<Number>} groupIds
+   */
+  async checkAssignUserToGroupAccess (user, groupIds = []) {
+    if (!_.isArray(groupIds) || groupIds.length < 1) {
+      return true
+    }
+
+    const userPermissions = user.permissions ? user.permissions : user.getGlobalPermissions()
+
+    if (_.includes(userPermissions, 'manage:system')) {
+      return true
+    }
+
+    const hasWriteUsers = _.includes(userPermissions, 'write:users') || _.includes(userPermissions, 'manage:users')
+    const hasWriteGroups = _.includes(userPermissions, 'write:groups') || _.includes(userPermissions, 'manage:groups')
+
+    if (!hasWriteUsers && !hasWriteGroups) {
+      return false
+    }
+
+    const groups = await WIKI.models.groups.query().select('id', 'permissions').whereIn('id', _.uniq(groupIds))
+
+    for (const group of groups) {
+      const permissions = _.castArray(group.permissions)
+      const hasManageSystem = permissions.some(p => p === 'manage:system')
+      const hasElevatedResourcePermissions = permissions.some(p => {
+        const resType = _.last(_.split(p, ':'))
+        return ['users', 'groups', 'navigation', 'theme', 'api'].includes(resType)
+      })
+
+      if (hasManageSystem && !_.includes(userPermissions, 'manage:groups')) {
+        return false
+      }
+
+      if (hasElevatedResourcePermissions && !hasWriteGroups) {
+        return false
+      }
+    }
+
+    return true
+  },
+
+  /**
    * Check for exclusive permissions (contain any X permission(s) but not any Y permission(s))
    *
    * @param {User} user

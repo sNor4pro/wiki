@@ -16,8 +16,18 @@
                   img(src='/_assets/svg/editor-icon-markdown.svg', alt='Markdown', style='width: 36px;')
                   .body-2.primary--text.mt-2 Markdown
                   .caption.grey--text Plain Text Formatting
-            v-flex(xs6)
+            v-flex(xs4)
               v-card.radius-7.animated.fadeInUp.wait-p2s(
+                hover
+                light
+                ripple
+                )
+                v-card-text.text-center(@click='openPandocImport')
+                  img(src='/_assets/svg/icon-software.svg', alt='Pandoc Import', style='width: 36px;')
+                  .body-2.primary--text.mt-2 Dokumentimport (Pandoc)
+                  .caption.grey--text Convert files to Markdown
+            v-flex(xs6)
+              v-card.radius-7.animated.fadeInUp.wait-p3s(
                 hover
                 light
                 ripple
@@ -27,7 +37,7 @@
                   .body-2.mt-2.primary--text Visual Editor
                   .caption.grey--text Rich-text WYSIWYG
             v-flex(xs4)
-              v-card.radius-7.animated.fadeInUp.wait-p3s(
+              v-card.radius-7.animated.fadeInUp.wait-p4s(
                 hover
                 light
                 ripple
@@ -37,7 +47,7 @@
                   .body-2.primary--text.mt-2 AsciiDoc
                   .caption.grey--text Plain Text Formatting
             v-flex(xs4)
-              v-card.radius-7.animated.fadeInUp.wait-p4s(
+              v-card.radius-7.animated.fadeInUp.wait-p5s(
                 hover
                 light
                 ripple
@@ -47,7 +57,7 @@
                   .body-2.primary--text.mt-2 Code
                   .caption.grey--text Raw HTML
             v-flex(xs4)
-              v-card.radius-7.animated.fadeInUp.wait-p5s(
+              v-card.radius-7.animated.fadeInUp.wait-p6s(
                 hover
                 light
                 ripple
@@ -82,12 +92,17 @@ export default {
       set(val) { this.$emit('input', val) }
     },
     currentEditor: sync('editor/editor'),
+    activeModal: sync('editor/activeModal'),
     locale: get('page/locale'),
     path: get('page/path')
   },
   methods: {
     selectEditor (name) {
       this.currentEditor = `editor${_.startCase(name)}`
+      this.isShown = false
+    },
+    openPandocImport () {
+      this.activeModal = 'editorModalPandocImport'
       this.isShown = false
     },
     goBack () {

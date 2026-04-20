@@ -1,20 +1,27 @@
-const cmdExists = require('command-exists')
 const os = require('os')
+
+/* global WIKI */
 
 module.exports = {
   key: 'pandoc',
   title: 'Pandoc',
   description: 'Convert between markup formats. Required for converting from other formats such as MediaWiki, AsciiDoc, Textile and other wikis.',
   async isCompatible () {
-    return os.arch() === 'x64'
+    return ['x64', 'arm64'].includes(os.arch())
   },
   isInstalled: false,
+  version: '',
+  binaryPath: 'pandoc',
   async check () {
-    try {
-      await cmdExists('pandoc')
-      this.isInstalled = true
-    } catch (err) {
+    if (WIKI.pandoc) {
+      const status = await WIKI.pandoc.refreshStatus({ force: true })
+      this.isInstalled = status.isInstalled
+      this.version = status.version
+      this.binaryPath = status.binaryPath
+    } else {
       this.isInstalled = false
+      this.version = ''
+      this.binaryPath = 'pandoc'
     }
     return this.isInstalled
   }

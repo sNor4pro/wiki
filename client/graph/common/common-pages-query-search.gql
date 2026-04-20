@@ -3,10 +3,18 @@ query ($query: String!) {
     search(query:$query) {
       results {
         id
+        pageId
         title
         description
         path
         locale
+        contentMode
+        sectionType
+        sectionIndex
+        sectionKey
+        sectionHeading
+        sectionAnchor
+        snippetPreview
       }
       suggestions
       totalHits

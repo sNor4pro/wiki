@@ -20,6 +20,11 @@
 
 ##### A modern, lightweight and powerful wiki app built on NodeJS
 
+> This repository is a maintained fork of [Requarks/wiki](https://github.com/Requarks/wiki). The original Wiki.js project, brand, and most of the platform work come from Requarks and its contributors. If this fork helps you, please star the upstream project and consider supporting it.
+
+> Fork repository: [sNyteXx/wiki](https://github.com/sNyteXx/wiki)
+> Upstream base: [Requarks/wiki](https://github.com/Requarks/wiki)
+
 </div>
 
 - **[Official Website](https://js.wiki/)**
@@ -31,9 +36,18 @@
 - [Feature Requests](https://feedback.js.wiki/wiki)
 - Chat with us on [Discord](https://discord.gg/rcxt9QS2jd)
 - [Translations](https://docs.requarks.io/dev/translations) *(We need your help!)*
-- [E2E Testing Results](https://dashboard.cypress.io/projects/r7qxah/runs)
 - [Special Thanks](#special-thanks)
 - [Contribute](#contributors)
+
+## Fork Additions
+
+This fork keeps tracking the upstream Wiki.js base while adding a few workflow-focused extensions for teams that want more search depth and richer authoring inside the editor.
+
+- Chatbot (RAG): optional retrieval-augmented search and chat flows for internal knowledge access.
+- Clipboard in Markdown: improved paste and import handling for Markdown-centric editing flows.
+- Elasticsearch optimization: richer indexing and section-aware search results for better relevance and navigation.
+
+The goal is to keep the upstream upgrade path manageable while documenting the fork-specific surface area clearly. Where possible, fork features stay isolated so new Requarks fixes can still be merged with minimal friction.
 
 [Follow our Twitter feed](https://twitter.com/requarks) to learn about upcoming updates and new releases!
 
@@ -511,9 +525,6 @@ This project exists thanks to all the people who contribute. [[Contribute]](http
 
 ![Icons8](https://static.requarks.io/logo/icons8-text-h40.png)  
 [Icons8](https://icons8.com/) for providing access to their beautiful icon sets.
-
-![Localazy](https://static.requarks.io/logo/localazy-h40.png)  
-[Localazy](https://localazy.com/) for providing access to their great localization service.
 
 ![Lokalise](https://static.requarks.io/logo/lokalise-text-h40.png)  
 [Lokalise](https://lokalise.com/) for providing access to their great localization tool.

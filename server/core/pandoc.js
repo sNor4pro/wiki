@@ -168,7 +168,7 @@ module.exports = {
         maxBuffer: 1024 * 1024
       })
       const firstLine = _.first(_.toString(result.stdout || '').split(/\r?\n/)) || ''
-      const versionMatch = firstLine.match(/pandoc\s+([0-9][\w.\-]+)/i)
+      const versionMatch = firstLine.match(/pandoc\s+([0-9][\w.-]+)/i)
 
       return {
         isInstalled: true,
@@ -350,9 +350,7 @@ module.exports = {
   },
 
   getPipelineLabel (writer, enableWikiNormalizer) {
-    return enableWikiNormalizer
-      ? `Pandoc -> ${writer} -> Wiki-Normalizer`
-      : `Pandoc -> ${writer}`
+    return enableWikiNormalizer ? `Pandoc -> ${writer} -> Wiki-Normalizer` : `Pandoc -> ${writer}`
   },
 
   getAllowlistTypeForReader (reader) {
@@ -435,9 +433,7 @@ module.exports = {
     }
 
     if (!isInstalled) {
-      return lastError
-        ? `Pandoc wurde nicht gefunden oder konnte nicht gestartet werden. ${lastError}`
-        : 'Pandoc wurde nicht gefunden oder konnte nicht gestartet werden.'
+      return lastError ? `Pandoc wurde nicht gefunden oder konnte nicht gestartet werden. ${lastError}` : 'Pandoc wurde nicht gefunden oder konnte nicht gestartet werden.'
     }
 
     if (version) {
@@ -568,7 +564,7 @@ module.exports = {
     }
   },
 
-  async convertImport ({ filePath, originalname, mimetype, user, locale, pagePath, reviewWorkflow = false }) {
+  async convertImport ({ filePath, originalname, mimetype, user, locale, pagePath }) {
     const conf = this.getConfig()
     const normalizedLocale = normalizeLocale(locale)
     const normalizedPath = normalizePagePath(pagePath)
@@ -656,10 +652,10 @@ module.exports = {
       const normalizedResult = conf.enableWikiNormalizer
         ? this.normalizeMarkdown(mediaResult.content)
         : {
-            content: _.toString(mediaResult.content || '').replace(/\r\n?/g, '\n').replace(/\n{3,}/g, '\n\n').trim(),
-            warnings: [],
-            suggestedDescription: this.extractSuggestedDescription(mediaResult.content)
-          }
+          content: _.toString(mediaResult.content || '').replace(/\r\n?/g, '\n').replace(/\n{3,}/g, '\n\n').trim(),
+          warnings: [],
+          suggestedDescription: this.extractSuggestedDescription(mediaResult.content)
+        }
 
       warnings.push(...normalizedResult.warnings)
 
@@ -684,9 +680,7 @@ module.exports = {
     } catch (err) {
       WIKI.logger.warn(`[pandoc-import:${requestId}] Conversion failed after ${Date.now() - startTime}ms reader=${detection.selectedReader} writer=${writer} mime=${mimetype || 'n/a'}: ${err.message}`)
       const isMissingBinary = _.get(err, 'code') === 'ENOENT'
-      const friendlyError = new Error(isMissingBinary
-        ? 'Pandoc konnte auf dem Server nicht gestartet werden. Bitte prüfe die Installation oder den konfigurierten Binary-Pfad.'
-        : 'Die Datei konnte nicht nach Markdown konvertiert werden. Bitte prüfe Dateityp, Inhalt und Pandoc-Konfiguration.')
+      const friendlyError = new Error(isMissingBinary ? 'Pandoc konnte auf dem Server nicht gestartet werden. Bitte prüfe die Installation oder den konfigurierten Binary-Pfad.' : 'Die Datei konnte nicht nach Markdown konvertiert werden. Bitte prüfe Dateityp, Inhalt und Pandoc-Konfiguration.')
       friendlyError.status = err.killed ? 504 : (isMissingBinary ? 503 : 422)
       throw friendlyError
     } finally {

@@ -1,5 +1,8 @@
 const { JSDOM } = require('jsdom')
 const createDOMPurify = require('dompurify')
+const {
+  isInternalPdfAssetPath
+} = require('../markdown-pdf-embed/helpers')
 
 module.exports = {
   async init(input, config) {
@@ -7,8 +10,8 @@ module.exports = {
       const window = new JSDOM('').window
       const DOMPurify = createDOMPurify(window)
 
-      const allowedAttrs = ['v-pre', 'v-slot:tabs', 'v-slot:content', 'target']
-      const allowedTags = ['tabset', 'template']
+      const allowedAttrs = ['v-pre', 'v-slot:tabs', 'v-slot:content', 'target', 'src', 'title', 'loading', 'width', 'height', 'frameborder', 'referrerpolicy']
+      const allowedTags = ['tabset', 'template', 'iframe']
 
       if (config.allowDrawIoUnsafe) {
         allowedTags.push('foreignObject')
@@ -27,8 +30,27 @@ module.exports = {
         })
       }
 
+      DOMPurify.addHook('uponSanitizeElement', (elm) => {
+        if (!elm || !elm.nodeName || elm.nodeName.toLowerCase() !== 'iframe') {
+          return
+        }
+
+        if (config.allowIFrames) {
+          return
+        }
+
+        const parent = elm.parentNode
+        const isPdfEmbed = Boolean(parent && parent.nodeType === 1 && parent.classList && parent.classList.contains('pdf-embed'))
+        const src = elm.getAttribute('src')
+
+        if (!isPdfEmbed || !isInternalPdfAssetPath(src)) {
+          if (elm.parentNode) {
+            elm.parentNode.removeChild(elm)
+          }
+        }
+      })
+
       if (config.allowIFrames) {
-        allowedTags.push('iframe')
         allowedAttrs.push('allow')
       }
 

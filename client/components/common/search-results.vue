@@ -23,9 +23,11 @@
                 img(src='/_assets/svg/icon-selective-highlighting.svg')
               v-list-item-content
                 v-list-item-title(v-text='item.title')
-                v-list-item-subtitle.caption(v-text='item.description')
-                .caption.grey--text(v-text='item.path')
+                v-list-item-subtitle.caption(v-text='resultDescription(item)')
+                .caption.grey--text(v-text='resultLocation(item)')
+                .caption.blue--text.text--lighten-3(v-if='resultSectionMeta(item)', v-text='resultSectionMeta(item)')
               v-list-item-action
+                v-chip(v-if='resultModeLabel(item)', label, outlined, class='mb-1') {{ resultModeLabel(item) }}
                 v-chip(label, outlined) {{item.locale.toUpperCase()}}
             v-divider(v-if='idx < results.length - 1')
         v-pagination.mt-3(
@@ -213,6 +215,75 @@ export default {
     normalizeAiResults (items) {
       return _.uniqBy(items || [], item => `${item.locale}:${item.path}`)
     },
+    resultDescription(item) {
+      const contentMode = _.get(item, 'contentMode', '')
+      const description = _.trim(_.toString(_.get(item, 'description', '') || ''))
+      const snippet = _.trim(_.toString(_.get(item, 'snippetPreview', '') || ''))
+
+      if (contentMode && contentMode !== 'page') {
+        return snippet || description
+      }
+
+      return description || snippet
+    },
+    resultLocation(item) {
+      const path = _.trim(_.toString(_.get(item, 'pagePath', '') || _.get(item, 'path', '') || ''))
+      const anchor = _.trim(_.toString(_.get(item, 'sectionAnchor', '') || ''))
+      return anchor ? `${path} #${anchor}` : path
+    },
+    resultSectionMeta(item) {
+      const meta = []
+      const contentMode = _.get(item, 'contentMode', '')
+      const sectionType = _.get(item, 'sectionType', '')
+      const sectionHeading = _.trim(_.toString(_.get(item, 'sectionHeading', '') || ''))
+      const sectionTypeLabel = this.resultSectionTypeLabel(sectionType)
+
+      if (contentMode && contentMode !== 'page') {
+        meta.push(this.resultModeLabel(item))
+      }
+      if (sectionTypeLabel && sectionTypeLabel !== this.resultModeLabel(item)) {
+        meta.push(sectionTypeLabel)
+      }
+      if (sectionHeading) {
+        meta.push(sectionHeading)
+      }
+
+      return meta.join(' · ')
+    },
+    resultSectionTypeLabel(sectionType) {
+      switch (sectionType) {
+        case 'page':
+          return 'Ganze Seite'
+        case 'p':
+          return 'Absatz'
+        case 'ul':
+        case 'ol':
+          return 'Liste'
+        case 'blockquote':
+          return 'Zitat'
+        case 'table':
+          return 'Tabelle'
+        case 'pre':
+          return 'Codeblock'
+        case 'section':
+          return 'Abschnitt'
+        default:
+          return _.trim(_.toString(sectionType || ''))
+      }
+    },
+    resultModeLabel(item) {
+      const contentMode = _.get(item, 'contentMode', '')
+      switch (contentMode) {
+        case 'paragraph':
+          return 'Absatz'
+        case 'block':
+          return 'Textblock'
+        case 'page':
+          return 'Ganze Seite'
+        default:
+          return ''
+      }
+    },
     truncateAiChunk (chunk) {
       const text = _.trim(_.toString(chunk || '').replace(/\s+/g, ' '))
       if (text.length <= 150) {
@@ -251,10 +322,14 @@ export default {
       this.search = term
     },
     goToPage(item) {
-      window.location.assign(`/${item.locale}/${item.path}`)
+      const anchor = _.get(item, 'sectionAnchor', '')
+      const path = _.get(item, 'pagePath', item.path)
+      window.location.assign(`/${item.locale}/${path}${anchor ? `#${anchor}` : ''}`)
     },
     goToPageInNewTab(item) {
-      window.open(`/${item.locale}/${item.path}`, '_blank')
+      const anchor = _.get(item, 'sectionAnchor', '')
+      const path = _.get(item, 'pagePath', item.path)
+      window.open(`/${item.locale}/${path}${anchor ? `#${anchor}` : ''}`, '_blank')
     }
   },
   apollo: {

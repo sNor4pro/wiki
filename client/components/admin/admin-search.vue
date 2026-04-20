@@ -97,6 +97,9 @@
                 persistent-hint
                 :class='cfg.value.hint ? "mb-2" : ""'
                 )
+            v-alert(v-if='granularityModeConfig', type='info', outlined, dense, class='mt-4')
+              .subtitle-2 {{$t('admin:search.rebuildIndex')}}
+              .body-2 Suchgranularität beeinflusst die tatsächliche Indexstruktur. Nach einer Änderung bitte den Suchindex neu aufbauen.
 </template>
 
 <script>
@@ -112,6 +115,11 @@ export default {
       engines: [],
       selectedEngine: '',
       engine: {}
+    }
+  },
+  computed: {
+    granularityModeConfig() {
+      return _.find(this.engine.config || [], ['key', 'granularityMode'])
     }
   },
   watch: {

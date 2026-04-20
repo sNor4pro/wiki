@@ -85,6 +85,57 @@ import 'codemirror/addon/search/searchcursor.js'
 // Platform detection
 // const CtrlKey = /Mac/.test(navigator.platform) ? 'Cmd' : 'Ctrl'
 
+const PDF_EMBED_WIDTH = '100%'
+const PDF_EMBED_HEIGHT = 720
+const PDF_EMBED_CLASS = 'pdf-embed'
+
+function normalizePdfPath(input) {
+  if (!_.isString(input)) {
+    return null
+  }
+
+  const value = input.trim()
+  if (!value || value.startsWith('//')) {
+    return null
+  }
+
+  if (/^[a-z][a-z0-9+.-]*:/i.test(value)) {
+    return null
+  }
+
+  const pathOnly = value.replace(/[?#].*$/, '')
+  if (!pathOnly.startsWith('/')) {
+    return null
+  }
+
+  if (pathOnly.includes('\\') || /\s/.test(pathOnly)) {
+    return null
+  }
+
+  if (!/\.pdf$/i.test(pathOnly)) {
+    return null
+  }
+
+  return value
+}
+
+function buildPdfEmbedMarkup(input, title) {
+  const pdfPath = normalizePdfPath(input)
+  if (!pdfPath) {
+    return ''
+  }
+
+  const safePath = _.escape(pdfPath)
+  const safeTitle = _.escape(title || _.last(pdfPath.replace(/[?#].*$/, '').split('/')) || 'PDF')
+
+  return [
+    `<div class="${PDF_EMBED_CLASS}">`,
+    `  <iframe src="${safePath}" title="${safeTitle}" loading="lazy" width="${PDF_EMBED_WIDTH}" height="${PDF_EMBED_HEIGHT}" frameborder="0"></iframe>`,
+    `  <a href="${safePath}">PDF herunterladen</a>`,
+    `</div>`
+  ].join('\n')
+}
+
 // ========================================
 // Vue Component
 // ========================================
@@ -241,6 +292,11 @@ export default {
         case 'BINARY':
           this.insertAtCursor({
             content: `<a href="${opts.path}" title="${opts.text}">${opts.text}</a>`
+          })
+          break
+        case 'PDF':
+          this.insertAtCursor({
+            content: buildPdfEmbedMarkup(opts.path, opts.text) || `<a href="${_.escape(opts.path)}" title="${_.escape(opts.text)}">PDF herunterladen</a>`
           })
           break
       }

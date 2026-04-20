@@ -173,6 +173,7 @@
                 v-btn(icon, tile, height='64', v-on='on', @click='pageNew', :aria-label='$t(`common:header.newPage`)')
                   v-icon(color='grey') mdi-text-box-plus-outline
               span {{$t('common:header.newPage')}}
+          template(v-if='hasNewPagePermission && path && mode !== `edit`')
             v-divider(vertical)
 
           //- ADMIN
@@ -304,6 +305,7 @@ export default {
     mode: get('page/mode'),
     name: get('user/name'),
     email: get('user/email'),
+    userId: get('user/id'),
     pictureUrl: get('user/pictureUrl'),
     isAuthenticated: get('user/authenticated'),
     permissions: get('user/permissions'),

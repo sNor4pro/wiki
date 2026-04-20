@@ -12,6 +12,7 @@ props:
     hint: Should match the version of the Elasticsearch nodes you are connecting to
     order: 1
     enum:
+      - '9.x'
       - '8.x'
       - '7.x'
       - '6.x'
@@ -43,15 +44,25 @@ props:
     hint: 'The token analyzer in elasticsearch'
     default: simple
     order: 6
+  granularityMode:
+    type: String
+    title: Search Granularity
+    hint: 'Ganze Seite = one document per page. Absätze = one document per paragraph or list block. Textblöcke = grouped semantic blocks. Changing this setting requires a search index rebuild.'
+    enum:
+      - page
+      - paragraph
+      - block
+    default: page
+    order: 7
   sniffOnStart:
     type: Boolean
     title: Sniff on start
     hint: 'Should Wiki.js attempt to detect the rest of the cluster on first connect? (Default: off)'
     default: false
-    order: 7
+    order: 8
   sniffInterval:
     type: Number
     title: Sniff Interval
     hint: '0 = disabled, Interval in seconds to check for updated list of nodes in cluster. (Default: 0)'
     default: 0
-    order: 8
+    order: 9

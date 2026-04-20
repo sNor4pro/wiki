@@ -62,8 +62,13 @@ module.exports = {
     }
   },
   UserMutation: {
-    async create (obj, args) {
+    async create (obj, args, context) {
       try {
+        const canAssignElevatedGroups = await WIKI.auth.checkAssignUserToGroupAccess(context.req.user, args.groups)
+        if (!canAssignElevatedGroups) {
+          throw new Error('You are not authorized to assign a user to a group with elevated permissions.')
+        }
+
         await WIKI.models.users.createNewUser(args)
 
         return {
@@ -94,8 +99,13 @@ module.exports = {
         }
       }
     },
-    async update (obj, args) {
+    async update (obj, args, context) {
       try {
+        const canAssignElevatedGroups = await WIKI.auth.checkAssignUserToGroupAccess(context.req.user, args.groups)
+        if (!canAssignElevatedGroups) {
+          throw new Error('You are not authorized to assign a user to a group with elevated permissions.')
+        }
+
         await WIKI.models.users.updateUser(args)
 
         return {

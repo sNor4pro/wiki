@@ -1,0 +1,12 @@
+mutation ($config: PandocImportConfigInput!) {
+  pandocImport {
+    saveConfig(config: $config) {
+      responseResult {
+        succeeded
+        errorCode
+        slug
+        message
+      }
+    }
+  }
+}

@@ -21,35 +21,35 @@
           color='green'
           @click.exact='save'
           @click.ctrl.exact='saveAndClose'
-          :class='{ "is-icon": $vuetify.breakpoint.mdAndDown }'
+          :class='{ "is-icon": !showActionLabels }'
           )
-          v-icon(color='green', :left='$vuetify.breakpoint.lgAndUp') mdi-check
-          span.grey--text(v-if='$vuetify.breakpoint.lgAndUp && mode !== `create` && !isDirty') {{ $t('editor:save.saved') }}
-          span.white--text(v-else-if='$vuetify.breakpoint.lgAndUp') {{ mode === 'create' ? $t('common:actions.create') : $t('common:actions.save') }}
+          v-icon(color='green', :left='showActionLabels') mdi-check
+          span.grey--text(v-if='showActionLabels && mode !== `create` && !isDirty') {{ $t('editor:save.saved') }}
+          span.white--text(v-else-if='showActionLabels') {{ mode === 'create' ? $t('common:actions.create') : $t('common:actions.save') }}
         v-btn.animated.fadeInDown.wait-p1s(
           text
           color='blue'
           @click='openPropsModal'
-          :class='{ "is-icon": $vuetify.breakpoint.mdAndDown, "mx-0": !welcomeMode, "ml-0": welcomeMode }'
+          :class='{ "is-icon": !showActionLabels, "mx-0": !welcomeMode, "ml-0": welcomeMode }'
           )
-          v-icon(color='blue', :left='$vuetify.breakpoint.lgAndUp') mdi-tag-text-outline
-          span.white--text(v-if='$vuetify.breakpoint.lgAndUp') {{ $t('common:actions.page') }}
+          v-icon(color='blue', :left='showActionLabels') mdi-tag-text-outline
+          span.white--text(v-if='showActionLabels') {{ $t('common:actions.page') }}
         v-btn.animated.fadeInDown.wait-p2s(
           v-if='!welcomeMode'
           text
           color='red'
-          :class='{ "is-icon": $vuetify.breakpoint.mdAndDown }'
+          :class='{ "is-icon": !showActionLabels }'
           @click='exit'
           )
-          v-icon(color='red', :left='$vuetify.breakpoint.lgAndUp') mdi-close
-          span.white--text(v-if='$vuetify.breakpoint.lgAndUp') {{ $t('common:actions.close') }}
-        v-divider.ml-3(vertical)
+          v-icon(color='red', :left='showActionLabels') mdi-close
+          span.white--text(v-if='showActionLabels') {{ $t('common:actions.close') }}
+        v-divider(:class='showActionLabels ? `ml-3` : `ml-1`', vertical)
     v-main
       component(:is='currentEditor', :save='save')
       editor-modal-properties(v-model='dialogProps')
       editor-modal-editorselect(v-model='dialogEditorSelector')
       editor-modal-unsaved(v-model='dialogUnsaved', @discard='exitGo')
-      component(:is='activeModal')
+      component(:is='renderedActiveModal')
 
     loader(v-model='dialogProgress', :title='$t(`editor:save.processing`)', :subtitle='$t(`editor:save.pleaseWait`)')
     notify
@@ -84,6 +84,7 @@ export default {
     editorModalProperties: () => import(/* webpackChunkName: "editor", webpackMode: "eager" */ './editor/editor-modal-properties.vue'),
     editorModalUnsaved: () => import(/* webpackChunkName: "editor", webpackMode: "eager" */ './editor/editor-modal-unsaved.vue'),
     editorModalMedia: () => import(/* webpackChunkName: "editor", webpackMode: "eager" */ './editor/editor-modal-media.vue'),
+    editorModalPandocImport: () => import(/* webpackChunkName: "editor", webpackMode: "eager" */ './editor/editor-modal-pandoc-import.vue'),
     editorModalBlocks: () => import(/* webpackChunkName: "editor", webpackMode: "eager" */ './editor/editor-modal-blocks.vue'),
     editorModalConflict: () => import(/* webpackChunkName: "editor-conflict", webpackMode: "lazy" */ './editor/editor-modal-conflict.vue'),
     editorModalDrawio: () => import(/* webpackChunkName: "editor", webpackMode: "eager" */ './editor/editor-modal-drawio.vue')
@@ -180,6 +181,12 @@ export default {
     currentEditor: sync('editor/editor'),
     activeModal: sync('editor/activeModal'),
     mode: get('editor/mode'),
+    showActionLabels () {
+      return this.$vuetify.breakpoint.xlAndUp
+    },
+    renderedActiveModal () {
+      return this.activeModal
+    },
     welcomeMode() { return this.mode === `create` && this.path === `home` },
     currentPageTitle: sync('page/title'),
     checkoutDateActive: sync('editor/checkoutDateActive'),
@@ -203,6 +210,10 @@ export default {
   watch: {
     currentEditor(newValue, oldValue) {
       if (newValue !== '' && this.mode === 'create') {
+        if (this.$store.get('editor/suppressNextPropsModal')) {
+          this.$store.set('editor/suppressNextPropsModal', false)
+          return
+        }
         _.delay(() => {
           this.dialogProps = true
         }, 500)
@@ -213,6 +224,8 @@ export default {
     }
   },
   created() {
+    this.$store.set('editor/importMeta', null)
+    this.$store.set('editor/suppressNextPropsModal', false)
     this.$store.set('page/id', this.pageId)
     this.$store.set('page/description', this.description)
     this.$store.set('page/isPublished', this.isPublished)
@@ -267,6 +280,12 @@ export default {
     openPropsModal(name) {
       this.dialogProps = true
     },
+    getEditorRoute (locale, path) {
+      return `/e/${locale}/${path}`
+    },
+    getPageRoute (locale, path) {
+      return `/${locale}/${path}`
+    },
     showProgressDialog(textKey) {
       this.dialogProgress = true
     },
@@ -274,6 +293,7 @@ export default {
       this.dialogProgress = false
     },
     openConflict() {
+      // eslint-disable-next-line vue/custom-event-name-casing
       this.$root.$emit('saveConflict')
     },
     async save({ rethrow = false, overwrite = false } = {}) {
@@ -331,6 +351,8 @@ export default {
                     }
                     page {
                       id
+                      path
+                      locale
                       updatedAt
                     }
                   }
@@ -353,7 +375,7 @@ export default {
               title: this.$store.get('page/title')
             }
           })
-          resp = _.get(resp, 'data.pages.create', {})
+          resp = _.get(resp, `data.pages.create`, {})
           if (_.get(resp, 'responseResult.succeeded')) {
             this.checkoutDateActive = _.get(resp, 'page.updatedAt', this.checkoutDateActive)
             this.isConflict = false
@@ -364,8 +386,13 @@ export default {
             })
             this.$store.set('editor/id', _.get(resp, 'page.id'))
             this.$store.set('editor/mode', 'update')
+            this.$store.set('page/id', _.get(resp, 'page.id', this.$store.get('page/id')))
+            this.$store.set('page/locale', _.get(resp, 'page.locale', this.$store.get('page/locale')))
+            this.$store.set('page/path', _.get(resp, 'page.path', this.$store.get('page/path')))
             this.exitConfirmed = true
-            window.location.assign(`/${this.$store.get('page/locale')}/${this.$store.get('page/path')}`)
+            const destinationLocale = _.get(resp, 'page.locale', this.$store.get('page/locale'))
+            const destinationPath = _.get(resp, 'page.path', this.$store.get('page/path'))
+            window.location.assign(this.getPageRoute(destinationLocale, destinationPath))
           } else {
             throw new Error(_.get(resp, 'responseResult.message'))
           }
@@ -389,6 +416,7 @@ export default {
             }
           })
           if (_.get(conflictResp, 'data.pages.checkConflicts', false)) {
+            // eslint-disable-next-line vue/custom-event-name-casing
             this.$root.$emit('saveConflict')
             throw new Error(this.$t('editor:conflict.warning'))
           }
@@ -435,6 +463,8 @@ export default {
                       message
                     }
                     page {
+                      locale
+                      path
                       updatedAt
                     }
                   }
@@ -462,14 +492,18 @@ export default {
           if (_.get(resp, 'responseResult.succeeded')) {
             this.checkoutDateActive = _.get(resp, 'page.updatedAt', this.checkoutDateActive)
             this.isConflict = false
+            const nextLocale = _.get(resp, 'page.locale', this.$store.get('page/locale'))
+            const nextPath = _.get(resp, 'page.path', this.$store.get('page/path'))
+            this.$store.set('page/locale', nextLocale)
+            this.$store.set('page/path', nextPath)
             this.$store.commit('showNotification', {
               message: this.$t('editor:save.updateSuccess'),
               style: 'success',
               icon: 'check'
             })
-            if (this.locale !== this.$store.get('page/locale') || this.path !== this.$store.get('page/path')) {
+            if (this.locale !== nextLocale || this.path !== nextPath) {
               _.delay(() => {
-                window.location.replace(`/e/${this.$store.get('page/locale')}/${this.$store.get('page/path')}`)
+                window.location.replace(this.getEditorRoute(nextLocale, nextPath))
               }, 1000)
             }
           } else {
@@ -523,7 +557,9 @@ export default {
         if (this.$store.get('editor/mode') === 'create') {
           window.location.assign(`/`)
         } else {
-          window.location.assign(`/${this.$store.get('page/locale')}/${this.$store.get('page/path')}`)
+          const locale = this.$store.get('page/locale')
+          const path = this.$store.get('page/path')
+          window.location.assign(this.getPageRoute(locale, path))
         }
       }, 500)
     },

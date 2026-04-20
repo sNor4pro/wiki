@@ -123,7 +123,7 @@
                   v-icon(left) mdi-close
                   span {{$t('common:actions.cancel')}}
                 v-btn.ml-3.mr-0.my-0.radius-7(color='teal', large, @click='insert', :disabled='!currentFileId', :dark='currentFileId !== null')
-                  v-icon(left) mdi-playlist-plus
+                  v-icon(left, v-text='currentAssetIsPdf ? `mdi-file-pdf-box` : `mdi-playlist-plus`')
                   span {{$t('common:actions.insert')}}
 
         v-flex(xs12, lg3)
@@ -174,7 +174,7 @@
           //-     v-spacer
           //-     v-btn.px-4(color='teal', disabled) {{$t('common:actions.fetch')}}
 
-          v-card.mt-3.radius-7.animated.fadeInRight.wait-p4s(:light='!$vuetify.theme.dark', :dark='$vuetify.theme.dark')
+          v-card.mt-3.radius-7.animated.fadeInRight.wait-p4s(v-if='!currentAssetIsPdf', :light='!$vuetify.theme.dark', :dark='$vuetify.theme.dark')
             v-card-text.pb-0
               v-toolbar.radius-7(:color='$vuetify.theme.dark ? `teal` : `teal lighten-5`', dense, flat)
                 v-icon.mr-3(:color='$vuetify.theme.dark ? `white` : `teal`') mdi-format-align-top
@@ -288,6 +288,7 @@ export default {
     },
     editorKey: get('editor/editorKey'),
     activeModal: sync('editor/activeModal'),
+    pageId: get('page/id'),
     folderTree: get('editor/media@folderTree'),
     currentFolderId: sync('editor/media@currentFolderId'),
     currentFileId: sync('editor/media@currentFileId'),
@@ -313,6 +314,9 @@ export default {
     },
     currentAsset () {
       return _.find(this.assets, ['id', this.currentFileId]) || {}
+    },
+    currentAssetIsPdf () {
+      return this.isPdfAsset(this.currentAsset)
     },
     filePondServerOpts () {
       const jwtToken = Cookies.get('jwt')
@@ -360,6 +364,12 @@ export default {
     }
   },
   methods: {
+    isPdfAsset(asset) {
+      const ext = _.toLower(_.get(asset, 'ext', ''))
+      const filename = _.toLower(_.get(asset, 'filename', ''))
+      const mime = _.toLower(_.get(asset, 'mime', ''))
+      return ext === '.pdf' || filename.endsWith('.pdf') || mime === 'application/pdf'
+    },
     async refresh() {
       await this.$apollo.queries.assets.refetch()
       this.$store.commit('showNotification', {
@@ -372,7 +382,7 @@ export default {
       const asset = _.find(this.assets, ['id', this.currentFileId])
       const assetPath = this.folderTree.map(f => f.slug).join('/')
       this.$root.$emit('editorInsert', {
-        kind: asset.kind,
+        kind: this.isPdfAsset(asset) ? 'PDF' : asset.kind,
         path: this.currentFolderId > 0 ? `/${assetPath}/${asset.filename}` : `/${asset.filename}`,
         text: asset.filename,
         align: this.imageAlignment
@@ -393,7 +403,8 @@ export default {
       }
       for (let file of files) {
         file.setMetadata({
-          folderId: this.currentFolderId
+          folderId: this.currentFolderId,
+          pageId: this.pageId
         })
       }
       await this.$refs.pond.processFiles()

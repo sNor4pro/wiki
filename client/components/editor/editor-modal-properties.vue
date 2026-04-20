@@ -42,7 +42,7 @@
               :hint='$t(`editor:props.shortDescriptionHint`)'
               )
           v-divider
-          v-card-text.grey.pt-5(:class='$vuetify.theme.dark ? `darken-3-d3` : `lighten-5`')
+          v-card-text.grey.pt-5( :class='$vuetify.theme.dark ? `darken-3-d3` : `lighten-5`')
             .overline.pb-5 {{$t('editor:props.path')}}
             v-container.pa-0(fluid, grid-list-lg)
               v-layout(row, wrap)

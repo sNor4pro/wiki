@@ -1,0 +1,15 @@
+query {
+  pandocImport {
+    config {
+      enabled
+      defaultOutputFormat
+      enableWikiNormalizer
+      enableAutoTypeDetection
+      fallbackReader
+      allowedFileTypes
+      maxFileSize
+      showWarnings
+      pandocBinaryPath
+    }
+  }
+}

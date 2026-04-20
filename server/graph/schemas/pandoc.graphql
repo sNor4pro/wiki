@@ -1,0 +1,66 @@
+# ===============================================
+# PANDOC IMPORT
+# ===============================================
+
+extend type Query {
+  pandocImport: PandocImportQuery
+}
+
+extend type Mutation {
+  pandocImport: PandocImportMutation
+}
+
+# -----------------------------------------------
+# QUERIES
+# -----------------------------------------------
+
+type PandocImportQuery {
+  config: PandocImportConfig! @auth(requires: ["manage:system"])
+  status: PandocImportStatus! @auth(requires: ["manage:system"])
+}
+
+# -----------------------------------------------
+# MUTATIONS
+# -----------------------------------------------
+
+type PandocImportMutation {
+  saveConfig(
+    config: PandocImportConfigInput!
+  ): DefaultResponse @auth(requires: ["manage:system"])
+}
+
+# -----------------------------------------------
+# TYPES
+# -----------------------------------------------
+
+type PandocImportConfig {
+  enabled: Boolean!
+  defaultOutputFormat: String!
+  enableWikiNormalizer: Boolean!
+  enableAutoTypeDetection: Boolean!
+  fallbackReader: String!
+  allowedFileTypes: [String]!
+  maxFileSize: Int!
+  showWarnings: Boolean!
+  pandocBinaryPath: String!
+}
+
+type PandocImportStatus {
+  isAvailable: Boolean!
+  isInstalled: Boolean!
+  version: String!
+  binaryPath: String!
+  statusMessage: String!
+}
+
+input PandocImportConfigInput {
+  enabled: Boolean!
+  defaultOutputFormat: String!
+  enableWikiNormalizer: Boolean!
+  enableAutoTypeDetection: Boolean!
+  fallbackReader: String!
+  allowedFileTypes: [String]!
+  maxFileSize: Int!
+  showWarnings: Boolean!
+  pandocBinaryPath: String!
+}
