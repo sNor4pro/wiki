@@ -41,10 +41,11 @@
 
 ## Fork Additions
 
-This fork keeps tracking the upstream Wiki.js base while adding a few workflow-focused extensions for teams that want more search depth and richer authoring inside the editor.
+This fork keeps tracking the upstream Wiki.js base while adding a few workflow-focused extensions for teams that want more search depth, richer authoring, and smoother document ingestion inside the editor.
 
 - Chatbot (RAG): optional retrieval-augmented search and chat flows for internal knowledge access.
 - Clipboard in Markdown: improved paste and import handling for Markdown-centric editing flows.
+- Pandoc import: server-side document import to Markdown for formats like DOCX, ODT, HTML, and similar source documents.
 - Elasticsearch optimization: richer indexing and section-aware search results for better relevance and navigation.
 
 The goal is to keep the upstream upgrade path manageable while documenting the fork-specific surface area clearly. Where possible, fork features stay isolated so new Requarks fixes can still be merged with minimal friction.
