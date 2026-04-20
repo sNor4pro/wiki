@@ -219,16 +219,28 @@ export default {
       const contentMode = _.get(item, 'contentMode', '')
       const description = _.trim(_.toString(_.get(item, 'description', '') || ''))
       const snippet = _.trim(_.toString(_.get(item, 'snippetPreview', '') || ''))
+      const title = _.trim(_.toString(_.get(item, 'title', '') || ''))
+      const sectionHeading = _.trim(_.toString(_.get(item, 'sectionHeading', '') || ''))
+
+      const normalizedDescription = description && description !== title && description !== sectionHeading
+        ? description
+        : ''
 
       if (contentMode && contentMode !== 'page') {
-        return snippet || description
+        return snippet || normalizedDescription
       }
 
-      return description || snippet
+      return snippet || normalizedDescription
     },
     resultLocation(item) {
+      const contentMode = _.get(item, 'contentMode', '')
       const path = _.trim(_.toString(_.get(item, 'pagePath', '') || _.get(item, 'path', '') || ''))
       const anchor = _.trim(_.toString(_.get(item, 'sectionAnchor', '') || ''))
+
+      if (!anchor || contentMode === 'page') {
+        return path
+      }
+
       return anchor ? `${path} #${anchor}` : path
     },
     resultSectionMeta(item) {
@@ -236,7 +248,9 @@ export default {
       const contentMode = _.get(item, 'contentMode', '')
       const sectionType = _.get(item, 'sectionType', '')
       const sectionHeading = _.trim(_.toString(_.get(item, 'sectionHeading', '') || ''))
+      const title = _.trim(_.toString(_.get(item, 'title', '') || ''))
       const sectionTypeLabel = this.resultSectionTypeLabel(sectionType)
+      const isDistinctHeading = sectionHeading && sectionHeading !== title
 
       if (contentMode && contentMode !== 'page') {
         meta.push(this.resultModeLabel(item))
@@ -244,7 +258,7 @@ export default {
       if (sectionTypeLabel && sectionTypeLabel !== this.resultModeLabel(item)) {
         meta.push(sectionTypeLabel)
       }
-      if (sectionHeading) {
+      if (isDistinctHeading) {
         meta.push(sectionHeading)
       }
 

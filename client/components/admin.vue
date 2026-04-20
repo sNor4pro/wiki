@@ -68,6 +68,9 @@
             v-list-item(to='/rendering', color='primary')
               v-list-item-avatar(size='24', tile): v-icon mdi-cogs
               v-list-item-title {{ $t('admin:rendering.title') }}
+            v-list-item(to='/pandoc-import', color='primary')
+              v-list-item-avatar(size='24', tile): v-icon mdi-file-import-outline
+              v-list-item-title Pandoc Import
             v-list-item(to='/search', color='primary')
               v-list-item-avatar(size='24', tile): v-icon mdi-cloud-search-outline
               v-list-item-title {{ $t('admin:search.title') }}
@@ -164,6 +167,7 @@ const router = new VueRouter({
     { path: '/auth', component: () => import(/* webpackChunkName: "admin" */ './admin/admin-auth.vue') },
     { path: '/comments', component: () => import(/* webpackChunkName: "admin" */ './admin/admin-comments.vue') },
     { path: '/rendering', component: () => import(/* webpackChunkName: "admin" */ './admin/admin-rendering.vue') },
+    { path: '/pandoc-import', component: () => import(/* webpackChunkName: "admin" */ './admin/admin-pandoc-import.vue') },
     { path: '/editor', component: () => import(/* webpackChunkName: "admin" */ './admin/admin-editor.vue') },
     { path: '/extensions', component: () => import(/* webpackChunkName: "admin" */ './admin/admin-extensions.vue') },
     { path: '/logging', component: () => import(/* webpackChunkName: "admin" */ './admin/admin-logging.vue') },
